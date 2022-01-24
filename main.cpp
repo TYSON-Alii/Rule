@@ -7,8 +7,26 @@ using namespace std;
 class Rule {
 private:
 	vector<pair<string, string>> types;
+	vector<pair<string, string>> macros;
 	map<size_t, string> comments;
 	stringstream code;
+	static inline auto ltrim(std::string s) {
+		s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+			return !std::isspace(ch);
+			}));
+		return s;
+	}
+	static inline auto rtrim(std::string s) {
+		s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+			return !std::isspace(ch);
+			}).base(), s.end());
+		return s;
+	}
+	string strip(const string& str) {
+		string t = ltrim(str);
+		t = rtrim(t);
+		return t;
+	};
 public:
 	inline Rule(const string& _code) { code << _code; };
 	auto get_comments() {
@@ -73,6 +91,33 @@ public:
 		code << new_code;
 		return code.str();
 	};
+	auto get_macros() {
+		string s;
+		while (getline(code,s)) {
+			stringstream ss;
+			ss << s;
+			string t;
+			ss >> t;
+			if (t == "#define") {
+			_make:;
+				string key, value;
+				if (ss >> t) {
+					key = t;
+					while (ss >> t)
+						value += t + ' ';
+					if (!value.empty())
+						value.pop_back();
+					macros.push_back({ key,value });
+				}
+			}
+			else if (t == "#") {
+				ss >> t;
+				if (t == "define")
+					goto _make;
+			};
+		}
+		return macros;
+	};
 	auto parse() {
 
 	};
@@ -81,6 +126,8 @@ const auto& code = R"(
 #include <aaaaa>
 #include "bbbbb"
 #define meraba
+#define selam cat cut
+#define print cout <<
 typedef Int int;
 /*
 // dsfdsfdsf
@@ -92,7 +139,7 @@ int main() {
 
 auto main() -> int {
 	Rule parser(code);
-	for (const auto& [f, s] : parser.get_comments())
-		cout << f << ':' << '\n' << s;
+	for (const auto& [k, v] : parser.get_macros())
+		cout << k << " : " << v << '\n';
 	return 0;
 };
