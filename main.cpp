@@ -15,21 +15,26 @@ public:
 		bool dont_append = false;
 		char b_char = '\0';
 		while (code.get(c)) {
-			if (c == '/' and b_char == '/') {
+			if (c == '*' and b_char == '/') {
+				new_code.pop_back();
+				while (code.get(c))
+					if (c == '/' and b_char == '*')
+						break;
+					else
+						b_char = c;
+				//if (code.get(c))
+				//	b_char = c;
+				dont_append = true;
+			}
+			else if (c == '/' and b_char == '/') {
 				while (code.get(c) and c != '\n');
 				new_code.pop_back();
-			}
-			else if (c == '*' and b_char == '/') {
-				new_code.pop_back();
-				while (code.get(c) and c != '/' and b_char != '*')
-					b_char = c;
-				dont_append = true;
 			};
-			b_char = c;
 			if (dont_append == true)
 				dont_append = false;
 			else
 				new_code += c;
+			b_char = c;
 		};
 		return new_code;
 	};
@@ -42,14 +47,10 @@ const auto& code = R"(
 #include "bbbbb"
 #define meraba
 typedef Int int;
-
 /*
-dfds
-fsd
-fdsf
+// dsfdsfdsf
 */
-
-int main() { // dsdsadsad
+int main() {
 	return 0;
 };
 )";
