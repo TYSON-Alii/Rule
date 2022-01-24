@@ -2,22 +2,6 @@
 #include <vector>
 #include <string>
 #include <sstream>
-const auto& code = R"(
-#include <aaaaa>
-#include "bbbbb"
-#define meraba
-typedef Int int;
-
-/*
-selam
-*/
-
-// meraba
-int main() {
-
-	return 0;
-};
-)";
 using namespace std;
 class Parser {
 private:
@@ -28,17 +12,24 @@ public:
 	auto clear_comments() {
 		string new_code;
 		char c;
-		bool multi_begin = false;
-		bool single_begin = false;
+		bool dont_append = false;
 		char b_char = '\0';
 		while (code.get(c)) {
-			if (c == '/' and b_char == '/')
+			if (c == '/' and b_char == '/') {
 				while (code.get(c) and c != '\n');
-			else if (c == '*' and b_char == '/')
-				while (code.get(c) and c == '/' and b_char == '*')
+				new_code.pop_back();
+			}
+			else if (c == '*' and b_char == '/') {
+				new_code.pop_back();
+				while (code.get(c) and c != '/' and b_char != '*')
 					b_char = c;
+				dont_append = true;
+			};
 			b_char = c;
-			new_code += c;
+			if (dont_append == true)
+				dont_append = false;
+			else
+				new_code += c;
 		};
 		return new_code;
 	};
@@ -46,7 +37,22 @@ public:
 
 	};
 };
+const auto& code = R"(
+#include <aaaaa>
+#include "bbbbb"
+#define meraba
+typedef Int int;
 
+/*
+dfds
+fsd
+fdsf
+*/
+
+int main() { // dsdsadsad
+	return 0;
+};
+)";
 auto main() -> int {
 	Parser parser(code);
 	cout << parser.clear_comments();
