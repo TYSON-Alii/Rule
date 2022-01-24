@@ -1,14 +1,48 @@
 #include <iostream>
 #include <vector>
+#include <map>
 #include <string>
 #include <sstream>
 using namespace std;
-class Parser {
+class Rule {
 private:
 	vector<pair<string, string>> types;
+	map<size_t, string> comments;
 	stringstream code;
 public:
-	inline Parser(const string& _code) { code << _code; };
+	inline Rule(const string& _code) { code << _code; };
+	auto get_comments() {
+		comments.clear();
+		string t_string;
+		char c;
+		char b_char = '\0';
+		size_t p = 0u;
+		while (code.get(c)) {
+			if (c == '*' and b_char == '/') {
+				t_string.clear();
+				const auto tp = p;
+				while (code.get(c)) {
+					if (c == '/' and b_char == '*')
+						break;
+					else
+						t_string += b_char = c;
+					p++;
+				}
+				if (!t_string.empty())
+					t_string.pop_back();
+				comments.insert({ tp,t_string });
+			}
+			else if (c == '/' and b_char == '/') {
+				t_string.clear();
+				const auto tp = p;
+				while (code.get(c) and c != '\n') t_string += c, p++;
+				comments.insert({ tp,t_string });
+			};
+			b_char = c;
+			p++;
+		};
+		return comments;
+	};
 	auto clear_comments() {
 		string new_code;
 		char c;
@@ -36,7 +70,8 @@ public:
 				new_code += c;
 			b_char = c;
 		};
-		return new_code;
+		code << new_code;
+		return code.str();
 	};
 	auto parse() {
 
@@ -54,8 +89,10 @@ int main() {
 	return 0;
 };
 )";
+
 auto main() -> int {
-	Parser parser(code);
-	cout << parser.clear_comments();
+	Rule parser(code);
+	for (const auto& [f, s] : parser.get_comments())
+		cout << f << ':' << '\n' << s;
 	return 0;
 };
