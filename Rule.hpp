@@ -2,7 +2,8 @@
 #include <algorithm>
 #include <vector>
 #include <string>
-auto split_code(const string& code) {
+auto split_code(const std::string& code) {
+	using namespace std;
 	using str = string;
 	using pmr::vector;
 	struct lit_pair { str beg, end; };
