@@ -1,5 +1,22 @@
-### Rule
-C++ parser
+### Rule [C++ Parser]
+features;
+- [x] f-string literal
+- [x] .. operator
+- [ ] auto specifier after const keyword
+- [ ] #redefine
+- [x] \` \` string literal
+- [ ] advanced macros; [],(),<>, ()[], (){}, ()<>," ",' ', and etc..
+- [ ] #rep, #repn, #endrep
+- [ ] safe macros
+- [ ] local macros
+- [ ] removing parent bracket requiment
+- [ ] => operator for lambda
+- [ ] infile keyword
+- [ ] #operator
+- [ ] typespace
+- [ ] dotspace
+- [ ] #try, #catch, #endtry
+- [ ] function, variable aliasing
 ```cpp
 const str& falanke = R"(
 auto main() -> int {
