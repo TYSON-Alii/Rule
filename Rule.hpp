@@ -28,8 +28,8 @@ public:
 	Rule() = default;
 	Rule(const str& _code) : code(_code) { parse(); };
 	str parse() {
-		const auto& is_in = [](auto v, auto l)  { for (const auto& i : l) if (v == i) return true; return false; };
-		const auto& is_digit = [](char c)  { return c > char(47) and c < char(58); };
+		const auto& is_in = [](auto v, auto l) { for (const auto& i : l) if (v == i) return true; return false; };
+		const auto& is_digit = [](char c) { return c > char(47) and c < char(58); };
 		split = split_code(code);
 		list<str> temp_split;
 		str temp_str;
@@ -38,10 +38,25 @@ public:
 			const auto& it1 = it + 1;
 			if (i.starts_with("//") or i.starts_with("/*")) continue;
 			else if (i.starts_with("`")) {
-				temp_split.push_back("R(\""s+str(i.begin()+1,i.end()-1)+")\"");
+				temp_split.push_back("R(\""s + str(i.begin() + 1, i.end() - 1) + ")\"");
 			}
 			else if (i.starts_with("f\"")) {
 				temp_split.push_back(parse_fliteral(str(i.begin() + 2, i.end() - 1)));
+			}
+			else if (i.starts_with("#operator ")) {
+				const auto& s = str(i.begin() + 10, i.end() - 1);
+				rule_user_ops.push_back(rule_user_op + s + "();");
+				user_ops.push_back(s);
+			}
+			else if (i == "operator" and is_in(*it1, user_ops)) {
+				it++;
+				const str& name = "__cxx_rule::__operator_"s + *it;
+				temp_split.push_back(name);
+			}
+			else if (is_in(i, user_ops)) {
+				const auto& op = i;
+				const auto& var = *(it++);
+				temp_split.push_back("__cxx_rule::__operator_"s + op + '(' + var + ')');
 			}
 			else if (i == "..") {
 				temp_split.pop_back();
@@ -71,13 +86,13 @@ public:
 			else if (it1 != split.end()) {
 				auto& i1 = *it1;
 				if (i == "::") {
-					if (it != split.begin() and !(is_in(*(it-1), tokens) or is_in(*(it-1), keywords)))
+					if (it != split.begin() and !(is_in(*(it - 1), tokens) or is_in(*(it - 1), keywords)))
 						temp_split.back() += i + i1;
 					else
 						temp_split.push_back(i + i1);
 					it++;
 				}
-				else if (i == "operator" and is_in(i1,ops)) {
+				else if (i == "operator" and is_in(i1, ops)) {
 					temp_split.push_back(i + i1);
 					it++;
 				}
@@ -91,20 +106,20 @@ public:
 		temp_split.clear();
 		auto& ac = afterCode;
 		ac.clear();
-		if (!add_func.empty()) {
-			ac += rule_space;
-			for (const auto& f : add_func) {
-				if (f == "dotdot")
-					ac += rule_dotdot_op;
-			};
-			ac += "};\n\n";
+		ac += rule_space;
+		for (const auto& f : add_func) {
+			if (f == "dotdot")
+				ac += rule_dotdot_op;
 		};
+		for (const auto& op : rule_user_ops)
+			ac += op + '\n';
+		ac += "};\n\n";
 		for (auto it = split.begin(); it != split.end(); it++) {
 			if (it->starts_with("#"))
 				ac += '\n';
 			ac += *it;
 			if (it + 1 != split.end())
-				if (*it == "{" or (*it == "}" and *(it+1) != ";") or *(it+1) == "}" or *it == ";" or !is_in(*it, ops) and !is_in(*(it + 1), ops) or is_in(*it, keywords) or is_in(*it, tokens))
+				if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or !is_in(*it, ops) and !is_in(*(it + 1), ops) or is_in(*it, keywords) or is_in(*it, tokens))
 					ac += ' ';
 		};
 		return afterCode;
@@ -112,8 +127,8 @@ public:
 	list<str> split;
 	str afterCode;
 private:
-	list<str> add_func;
-	str rule_space = "class __cxx_rule { public:";
+	list<str> add_func, user_ops, rule_user_ops;
+	str rule_space = "namespace __cxx_rule {\n";
 	str rule_dotdot_op = R"(
 static auto __dotdot_op(auto beg, auto end) {
 	std::vector<decltype(beg)> list;
@@ -126,6 +141,7 @@ static auto __dotdot_op(auto beg, auto end) {
 	return list;
 };
 )";
+	str rule_user_op = "void __operator_";
 	list<str> split_code(const str& code) {
 		const auto& is_in = [](auto v, auto l)  { for (const auto& i : l) if (v == i) return true; return false; };
 		const auto& is_digit = [](char c)  { return c > char(47) and c < char(58); };
