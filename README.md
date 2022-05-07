@@ -19,14 +19,19 @@ features;
 - [ ] function, variable aliasing
 ```cpp
 const str& falanke = R"(
+#operator falan
+
+void operator falan(int v) {
+	cout << "falanke filanke: " << v << '\n';
+};
+
 auto main() -> int {
 	// comment
 	str hello = "Hello";
 	std::cout << f"{hello+"wo"}, World." << '\n';
 	str falanke = `wow..`;
 	int begin = 100, end = 50;
-	for (const auto& i : begin..end) { };
-	for (auto&& i : {0..10, 15, 30, 42}) { };
+	for (auto&& i : {0..10, 15, 30, 42}) falan i;
 	/* amazing comment */
 	return 0;
 };
@@ -40,18 +45,10 @@ auto main() -> int {
 
 ```
 OUTPUT:
-class __cxx_rule { public:
-static auto __dotdot_op(auto beg, auto end) {
-        std::vector<decltype(beg)> list;
-        if (beg < end)
-                for (auto i = beg; i < end; i++) list.push_back(i);
-        else if (beg > end)
-                for (auto i = beg; i > end; i--) list.push_back(i);
-        else
-                list.push_back(beg);
-        return list;
-};
+namespace __cxx_rule {
+void __operator_falan();
 };
 
-auto main()->int{ str hello="Hello"; std::cout<<(std::to_string(hello+"wo") + std::string(", World."))<<'\n'; str falanke=R("wow..)"; int begin=100,end=50; for (const auto&i:__cxx_rule::dotdot_op(begin,end)){ }; for (auto&&i:{ 0,1,2,3,4,5,6,7,8,9,15,30,42 } ){ }; return 0; };
+void __cxx_rule::__operator_falan(int v){ cout<<"falanke filanke: "<<v<<'\n'; };
+auto main()->int{ str hello="Hello"; std::cout<<(std::to_string(hello+"wo") + std::string(", World."))<<'\n'; str falanke=R("wow..)"; int begin=100,end=50; for (auto&&i:{ 0,1,2,3,4,5,6,7,8,9,15,30,42 } )__cxx_rule::__operator_falan(falan); return 0; };
 ```
