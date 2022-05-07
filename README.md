@@ -4,41 +4,28 @@ C++ parser
 const str& falanke = R"(
 auto main() -> int {
 	// comment
-	cout << "Hello, \"World." << '\n';
+	str hello = "Hello";
+	std::cout << f"{hello+"wo"}, World." << '\n';
+	str falanke = `wow
+	thats amazing
+string
+			literal...`;
 	/* amazing comment */
 	return 0;
 };
 )";
-
 auto main() -> int {
-	const auto& split = split_code(falanke);
-	for (const auto& i : split)
-		cout << i << '\n';
+	Rule parser(falanke);
+	cout << parser;
 	return 0;
 };
 ```
 
 ```
 OUTPUT:
-auto
-main
-(
-)
-->
-int
-{
-// comment
-
-cout
-<<
-"Hello, "World."
-<<
-'\n'
-;
-/* amazing comment */
-return
-0
-;
-}
-;
+auto main()->int{ // comment
+str hello="Hello"; std::cout<<(std::to_string(hello+"wo") + std::string(", World."))<<'\n'; str falanke=R("wow
+        thats amazing
+string
+                        literal...)"; /* amazing comment */ return 0; };
 ```
