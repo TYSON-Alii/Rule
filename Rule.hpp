@@ -13,7 +13,7 @@ public:
 	list<str> keywords { "return", "break", "case", "catch", "class", "concept", "continue", "decltype", "default", "delete", "do", "else", "if", "enum", "export", "extern", "for", "goto", "namespace", "new", "noexcept", "operator", "private", "public", "protected", "requires", "sizeof", "struct", "switch", "template", "throw", "try", "typedef", "typename", "union", "while" };
 	list<str> ops {
 		"{", "}","[", "]", "(", ")", "<", ">", "=", "+", "-", "/", "*", "%", "&", "|", "^", ".", ":", ",", ";", "?",
-		"==", "!=", ">=", "<=", "<<", ">>", "--", "++", "&&", "||", "+=", "-=", "*=", "/=", "%=", "^=", "|=", "&=", "->", "::",
+		"==", "!=", ">=", "<=", "<<", ">>", "--", "++", "&&", "||", "+=", "-=", "*=", "/=", "%=", "^=", "|=", "&=", "->", "::", "..",
 		"<=>", "<<=", ">>=", "..."
 	};
 	list<lit_pair> lits {
@@ -25,19 +25,48 @@ public:
 		lit_pair("`","`", {'\0','\0'}),
 		lit_pair("f\"","\"", {'{','}'})
 	};
-	Rule(const str& _code) : code(_code) {
+	Rule() = default;
+	Rule(const str& _code) : code(_code) { parse(); };
+	str parse() {
 		const auto& is_in = [](auto v, auto l)  { for (const auto& i : l) if (v == i) return true; return false; };
+		const auto& is_digit = [](char c)  { return c > char(47) and c < char(58); };
 		split = split_code(code);
 		list<str> temp_split;
 		str temp_str;
 		for (auto it = split.begin(); it != split.end(); it++) {
 			auto& i = *it;
 			const auto& it1 = it + 1;
-			if (i.starts_with("`")) {
+			if (i.starts_with("//") or i.starts_with("/*")) continue;
+			else if (i.starts_with("`")) {
 				temp_split.push_back("R(\""s+str(i.begin()+1,i.end()-1)+")\"");
 			}
 			else if (i.starts_with("f\"")) {
 				temp_split.push_back(parse_fliteral(str(i.begin() + 2, i.end() - 1)));
+			}
+			else if (i == "..") {
+				temp_split.pop_back();
+				if ((((it - 1)->front() == '-' and all_of((it - 1)->begin() + 1, (it - 1)->end(), is_digit)) or all_of((it - 1)->begin(), (it - 1)->end(), is_digit)) and
+					(((it + 1)->front() == '-' and all_of((it + 1)->begin() + 1, (it + 1)->end(), is_digit)) or all_of((it + 1)->begin(), (it + 1)->end(), is_digit))) {
+					const auto& beg = stoi(*(it - 1));
+					const auto& end = stoi(*(it + 1));
+					if (beg < end) {
+						const auto& e = end - 1;
+						for (int i = beg; i < e; i++) temp_split.push_back(to_string(i)), temp_split.push_back(",");
+						temp_split.push_back(to_string(e));
+					}
+					else if (beg > end) {
+						const auto& e = end + 1;
+						for (int i = beg; i > e; i--) temp_split.push_back(to_string(i)), temp_split.push_back(",");
+						temp_split.push_back(to_string(e));
+					}
+					else
+						temp_split.push_back(to_string(beg));
+				}
+				else {
+					if (!is_in("dotdot", add_func)) add_func.push_back("dotdot");
+					temp_split.push_back("__cxx_rule::dotdot_op("s + *(it - 1) + ',' + *(it + 1) + ')');
+				};
+				it++;
 			}
 			else if (it1 != split.end()) {
 				auto& i1 = *it1;
@@ -60,11 +89,46 @@ public:
 		};
 		split = temp_split;
 		temp_split.clear();
+		auto& ac = afterCode;
+		ac.clear();
+		if (!add_func.empty()) {
+			ac += rule_space;
+			for (const auto& f : add_func) {
+				if (f == "dotdot")
+					ac += rule_dotdot_op;
+			};
+			ac += "};\n\n";
+		};
+		for (auto it = split.begin(); it != split.end(); it++) {
+			if (it->starts_with("#"))
+				ac += '\n';
+			ac += *it;
+			if (it + 1 != split.end())
+				if (*it == "{" or (*it == "}" and *(it+1) != ";") or *(it+1) == "}" or *it == ";" or !is_in(*it, ops) and !is_in(*(it + 1), ops) or is_in(*it, keywords) or is_in(*it, tokens))
+					ac += ' ';
+		};
+		return afterCode;
 	};
 	list<str> split;
+	str afterCode;
 private:
+	list<str> add_func;
+	str rule_space = "class __cxx_rule { public:";
+	str rule_dotdot_op = R"(
+static auto __dotdot_op(auto beg, auto end) {
+	std::vector<decltype(beg)> list;
+	if (beg < end)
+		for (auto i = beg; i < end; i++) list.push_back(i);
+	else if (beg > end)
+		for (auto i = beg; i > end; i--) list.push_back(i);
+	else
+		list.push_back(beg);
+	return list;
+};
+)";
 	list<str> split_code(const str& code) {
 		const auto& is_in = [](auto v, auto l)  { for (const auto& i : l) if (v == i) return true; return false; };
+		const auto& is_digit = [](char c)  { return c > char(47) and c < char(58); };
 		sort(ops.begin(), ops.end(), [](const str& first, const str& second){ return first.size() > second.size(); });
 		sort(lits.begin(), lits.end(), [](const auto& first, const auto& second){ return first.beg.size() > second.beg.size(); });
 		str temp_str;
@@ -81,7 +145,18 @@ private:
 			if (isspace(i)) {
 				new_splt();
 				continue;
-			};
+			}
+			else if (i == '-') {
+				if (is_digit(*(it + 1))) {
+					temp_str.clear();
+					temp_str += '-';
+					it++;
+					while (is_digit(*it)) temp_str += *it, it++;
+					new_splt();
+					it--;
+					continue;
+				};
+			}
 			for (const auto& l : lits) {
 				const auto& len = l.beg.size();
 				const auto& end_len = l.end.size();
@@ -132,7 +207,7 @@ private:
 					};
 				};
 			};
-			temp_str += i;
+			temp_str += *it;
 		_exit:;
 		};
 		if (!temp_str.empty()) split.push_back(temp_str);
