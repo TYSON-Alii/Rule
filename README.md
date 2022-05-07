@@ -12,7 +12,7 @@ features;
 - [ ] removing parent bracket requiment
 - [ ] => operator for lambda
 - [ ] infile keyword
-- [ ] #operator
+- [x] #operator
 - [ ] typespace
 - [ ] dotspace
 - [ ] #try, #catch, #endtry
