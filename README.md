@@ -15,6 +15,7 @@ features;
 - [x] #operator
 - [ ] typespace
 - [ ] dotspace
+- [ ] nested functions
 - [ ] #try, #catch, #endtry
 - [ ] function, variable aliasing
 ```cpp
