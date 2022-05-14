@@ -10,22 +10,23 @@ public:
 	template <typename T>
 	using list = pmr::vector<T>;
 	struct lit_not_in { char beg, end; };
-	struct lit_pair { lit_pair(const str& b, const str& e, const lit_not_in& l, const bool& bs) : beg(b), end(e), not_in(l), bslash(bs) { }; str beg, end; lit_not_in not_in; bool bslash; };
+	struct lit_pair { lit_pair(const str& b, const str& e, const lit_not_in& l, const bool& bs, const bool& ln_p) : beg(b), end(e), not_in(l), bslash(bs), ln_problem(ln_p) { }; str beg, end; lit_not_in not_in; bool bslash, ln_problem; };
 	list<str> tokens {"const", "constexpr", "virtual", "static", "inline", "explicit", "friend", "volatile", "register", "short", "long", "signed", "unsigned" };
 	list<str> keywords { "return", "break", "case", "catch", "class", "concept", "continue", "decltype", "default", "delete", "do", "else", "if", "enum", "export", "extern", "for", "goto", "namespace", "new", "noexcept", "operator", "private", "public", "protected", "requires", "sizeof", "struct", "switch", "template", "throw", "try", "typedef", "typename", "union", "while" };
+	list<str> rbracket {"if", "while" };
 	list<str> ops {
 		"{", "}","[", "]", "(", ")", "<", ">", "=", "+", "-", "/", "*", "%", "&", "|", "^", ".", ":", ",", ";", "?",
 		"==", "!=", ">=", "<=", "<<", ">>", "--", "++", "&&", "||", "+=", "-=", "*=", "/=", "%=", "^=", "|=", "&=", "->", "::", "..",
 		"<=>", "<<=", ">>=", "...", "==="
 	};
 	list<lit_pair> lits {
-		lit_pair("\"","\"", {'\0','\0'}, true),
-		lit_pair("'","'", {'\0','\0'}, true),
-		lit_pair("//","\n", {'\0','\0'}, true),
-		lit_pair("/*","*/", {'\0','\0'}, false),
-		lit_pair("#","\n", {'\0','\0'}, true),
-		lit_pair("`","`", {'\0','\0'}, false),
-		lit_pair("f\"","\"", {'{','}'}, true)
+		lit_pair("\"","\"", {'\0','\0'}, true, true),
+		lit_pair("'","'", {'\0','\0'}, true, true),
+		lit_pair("//","\n", {'\0','\0'}, true, false),
+		lit_pair("/*","*/", {'\0','\0'}, false, false),
+		lit_pair("#","\n", {'\0','\0'}, true, false),
+		lit_pair("`","`", {'\0','\0'}, false, false),
+		lit_pair("f\"","\"", {'{','}'}, true, true)
 		// maybe later
 		// lit_pair("/+","+/", {'\0','\0'}, false)
 		// lit_pair("u8\"","\"", {'\0','\0'}, true)
@@ -49,7 +50,7 @@ public:
 			else if (i.starts_with("`")) {
 				add_include("string");
 				if (!is_in("str", add_func)) add_func.push_back("str");
-				temp_split.push_back("R\"("s + str(i.begin() + 1, i.end() - 1) + ")\"s");
+				temp_split.push_back("R\"_cxx_rule("s + str(i.begin() + 1, i.end() - 1) + ")__cxx_rule\"");
 			}
 			else if (i.starts_with("f\"")) {
 				add_include("string");
@@ -187,6 +188,38 @@ public:
 		};
 		split = temp_split;
 		temp_split.clear();
+		// 2nd iterate
+		for (auto it = split.begin(); it != split.end(); it++) {
+			const auto& i = *it;
+			if (is_in(i, rbracket)) {
+				temp_split.push_back(i);
+				temp_split.push_back("(");
+				it++;
+				int bc = 0, cc = 0, sc = 0;
+				while (!(bc == 0 and cc == 0 and sc == 0 and *it == "{")) {
+					if (*it == "(")
+						bc++;
+					else if (*it == ")")
+						bc--;
+					else if (*it == "{")
+						cc++;
+					else if (*it == "}")
+						cc--;
+					else if (*it == "[")
+						sc++;
+					else if (*it == "]")
+						sc--;
+					temp_split.push_back(*it);
+					it++;
+				};
+				temp_split.push_back(")");
+				temp_split.push_back("{");
+			}
+			else
+				temp_split.push_back(i);
+		}
+		split = temp_split;
+		temp_split.clear();
 		auto& ac = afterCode;
 		ac.clear();
 		for (const auto& i : rule_includes)
@@ -201,12 +234,18 @@ public:
 		for (const auto& op : rule_user_ops)
 			ac += op + '\n';
 		ac += "};\n\n";
+		uint tab = 0;
 		for (auto it = split.begin(); it != split.end(); it++) {
 			ac += *it;
 			if (it + 1 != split.end())
-				if (*it == "}" and *(it+1) == ";")
-					ac += ";\n", it++;
-				else if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or !is_in(*it, ops) and !is_in(*(it + 1), ops) or is_in(*it, keywords) or is_in(*it, tokens))
+				if (*it == ";" or *it == "{" or *(it+1) == "}") {
+					ac += "\n";
+					if (*it == "{") tab++;
+					else if (*(it+1) == "}") tab--;
+					for (uint i = 0; i < tab; i++)
+						ac += '\t';
+				}
+				else if ((*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or !is_in(*it, ops) and !is_in(*(it + 1), ops) or is_in(*it, keywords) or is_in(*it, tokens))
 					ac += ' ';
 		};
 		return afterCode;
@@ -279,7 +318,9 @@ namespace std {
 								not_c++;
 							else if (*it == l.not_in.end)
 								not_c--;
-							if (s != l.end) {
+							if (*it == '\n' and l.ln_problem and *(it - 1) != '\\')
+								throw "errorke";
+							else if (s != l.end) {
 								temp_str += *it;
 								it++;
 							}
