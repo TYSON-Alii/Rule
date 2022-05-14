@@ -1,4 +1,4 @@
-### Rule [C++ Parser]
+### Rule [C++ Parser, Re-Writer]
 features;
 - [x] f-string literal
 - [x] .. operator
