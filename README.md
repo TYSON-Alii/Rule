@@ -9,7 +9,7 @@ features;
 - [ ] #rep, #repn, #endrep
 - [ ] safe macros
 - [ ] local macros
-- [ ] removing parent bracket requiment
+- [x] removing parent bracket requiment
 - [ ] => operator for lambda
 - [ ] infile keyword
 - [x] #operator
@@ -22,10 +22,12 @@ features;
 const str& falanke = R"(
 #operator falan
 #operator filan
+#operator echo
 
 void operator falan(int v) {
 	cout << "falanke filanke: " << v << '\n';
 }
+inline auto operator echo(auto v) { return cout << v << '\n'; }
 
 #redefine M_PI 3.14f
 
@@ -37,6 +39,9 @@ auto main() -> int {
 	int begin = 10, end = 21;
 	for (auto&& i : beg..end) falan filan i;
 	cuske.ohake = 1.f;
+	if 2 + 2 == 4 { // require curly brackets
+		echo "evet.";
+	}
 	/* amazing comment */
 	return 0;
 };
@@ -72,15 +77,27 @@ auto __dotdot_op(auto beg, auto end) {
 };
 void __operator_falan();
 void __operator_filan();
+void __operator_echo();
 };
 
 namespace __cxx_rule { void __operator_falan(int v){ cout<<"falanke filanke: "<<v<<'\n';  }}
+ inline namespace __cxx_rule { inline auto __operator_echo(auto v){ return cout<<v<<'\n';  }}
  #ifdef M_PI
  #undef M_PI
  #define M_PI 3.14f
  #else
  #define M_PI 3.14f
  #endif
- auto main()->int{ str hello="Hello"; std::cout<<(std::to_string(hello+"wo") + std::string(", World."))<<'\n'; str falanke=R"(C:\wow\amazing)"s; int begin=10,end=21; for (auto&&i:__cxx_rule::dotdot_op(beg,end))__cxx_rule::__operator_falan(__cxx_rule::__operator_filan(i)); cuske.ohake=1.f; return 0; };
+ auto main()->int{
+        str hello="Hello";
+        std::cout<<(std::to_string(hello+"wo") + std::string(", World."))<<'\n';
+        str falanke=R"_cxx_rule(C:\wow\amazing)__cxx_rule";
+        int begin=10,end=21;
+        for (auto&&i:__cxx_rule::dotdot_op(beg,end))__cxx_rule::__operator_falan(__cxx_rule::__operator_filan(i));
+        cuske.ohake=1.f;
+        if (2+2==4){
+                __cxx_rule::__operator_echo("evet.");
+        } return 0;
+};
 namespace __cxx_rule { int __operator_filan(int v){ cout<<"oyle iste: "<<v<<'\n'; return v+42;  }}
 ```
