@@ -62,12 +62,10 @@ auto main() -> int {
 #include <string>
 #include <vector>
 namespace __cxx_rule {
-
 namespace std {
         inline string to_string(string s) { return s; };
         inline string to_string(string* s) { return *s; };
 };
-
 auto __dotdot_op(auto beg, auto end) {
         std::vector<decltype(beg)> list;
         if (beg < end) for (auto i = beg; i < end; i++) list.push_back(i);
@@ -91,7 +89,7 @@ namespace __cxx_rule { void __operator_falan(int v){ cout<<"falanke filanke: "<<
  auto main()->int{
         str hello="Hello";
         std::cout<<(std::to_string(hello+"wo") + std::string(", World."))<<'\n';
-        str falanke=R"_cxx_rule(C:\wow\amazing)__cxx_rule";
+        str falanke=R"__cxx_rule(C:\wow\amazing)__cxx_rule";
         int begin=10,end=21;
         for (auto&&i:__cxx_rule::dotdot_op(beg,end))__cxx_rule::__operator_falan(__cxx_rule::__operator_filan(i));
         cuske.ohake=1.f;
