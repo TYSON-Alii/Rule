@@ -95,7 +95,9 @@ namespace __cxx_rule { void __operator_falan(int v){ cout<<"falanke filanke: "<<
         cuske.ohake=1.f;
         if (2+2==4){
                 __cxx_rule::__operator_echo("evet.");
-        } return 0;
-};
+        }
+        return 0;
+}
+;
 namespace __cxx_rule { int __operator_filan(int v){ cout<<"oyle iste: "<<v<<'\n'; return v+42;  }}
 ```
