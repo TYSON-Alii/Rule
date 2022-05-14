@@ -57,8 +57,8 @@ auto main() -> int {
 };
 ```
 
-```
-OUTPUT:
+```cpp
+// OUTPUT:
 #include <string>
 #include <vector>
 namespace __cxx_rule {
