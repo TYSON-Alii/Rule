@@ -50,7 +50,7 @@ public:
 			else if (i.starts_with("`")) {
 				add_include("string");
 				if (!is_in("str", add_func)) add_func.push_back("str");
-				temp_split.push_back("R\"_cxx_rule("s + str(i.begin() + 1, i.end() - 1) + ")__cxx_rule\"");
+				temp_split.push_back("R\"__cxx_rule("s + str(i.begin() + 1, i.end() - 1) + ")__cxx_rule\"");
 			}
 			else if (i.starts_with("f\"")) {
 				add_include("string");
@@ -255,8 +255,7 @@ public:
 private:
 	list<str> add_func, user_ops, rule_user_ops, rule_includes;
 	const str& rule_space = "namespace __cxx_rule { ";
-	const str& rule_dotdot_op = R"(
-auto __dotdot_op(auto beg, auto end) {
+	const str& rule_dotdot_op = R"(auto __dotdot_op(auto beg, auto end) {
 	std::vector<decltype(beg)> list;
 	if (beg < end) for (auto i = beg; i < end; i++) list.push_back(i);
 	else if (beg > end) for (auto i = beg; i > end; i--) list.push_back(i);
@@ -264,8 +263,7 @@ auto __dotdot_op(auto beg, auto end) {
 	return list;
 };
 )";
-	const str& rule_to_string_funcs = R"(
-namespace std {
+	const str& rule_to_string_funcs = R"(namespace std {
 	inline string to_string(string s) { return s; };
 	inline string to_string(string* s) { return *s; };
 };
