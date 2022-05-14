@@ -238,14 +238,18 @@ public:
 		for (auto it = split.begin(); it != split.end(); it++) {
 			ac += *it;
 			if (it + 1 != split.end())
-				if (*it == ";" or *it == "{" or *(it+1) == "}") {
-					ac += "\n";
+				if (*it == ";" or *it == "{" or *it == "}") {
 					if (*it == "{") tab++;
-					else if (*(it+1) == "}") tab--;
+					else if (*it == "}") {
+						if (*(ac.end()-2) == '\t')
+							ac.erase(ac.end()-2);
+						tab--;
+					};
+					ac += '\n';
 					for (uint i = 0; i < tab; i++)
 						ac += '\t';
 				}
-				else if ((*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or !is_in(*it, ops) and !is_in(*(it + 1), ops) or is_in(*it, keywords) or is_in(*it, tokens))
+				else if (!it->ends_with("\n") and (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or !is_in(*it, ops) and !is_in(*(it + 1), ops) or is_in(*it, keywords) or is_in(*it, tokens))
 					ac += ' ';
 		};
 		return afterCode;
