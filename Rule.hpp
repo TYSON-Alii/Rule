@@ -12,7 +12,7 @@ public:
 	struct lit_not_in { char beg, end; };
 	struct lit_pair { lit_pair(const str& b, const str& e, const lit_not_in& l, const bool& bs, const bool& ln_p) : beg(b), end(e), not_in(l), bslash(bs), ln_problem(ln_p) { }; str beg, end; lit_not_in not_in; bool bslash, ln_problem; };
 	list<str> tokens {"const", "constexpr", "virtual", "static", "inline", "explicit", "friend", "volatile", "register", "short", "long", "signed", "unsigned" };
-	list<str> keywords { "return", "break", "case", "catch", "class", "concept", "continue", "decltype", "default", "delete", "do", "else", "if", "enum", "export", "extern", "for", "goto", "namespace", "new", "noexcept", "operator", "private", "public", "protected", "requires", "sizeof", "struct", "switch", "template", "throw", "try", "typedef", "typename", "union", "while" };
+	list<str> keywords { "fn", "return", "break", "case", "catch", "class", "concept", "continue", "decltype", "default", "delete", "do", "else", "if", "enum", "export", "extern", "for", "goto", "namespace", "new", "noexcept", "operator", "private", "public", "protected", "requires", "sizeof", "struct", "switch", "template", "throw", "try", "typedef", "typename", "union", "while" };
 	list<str> rbracket {"if", "while" };
 	list<str> ops {
 		"{", "}","[", "]", "(", ")", "<", ">", "=", "+", "-", "/", "*", "%", "&", "|", "^", ".", ":", ",", ";", "?",
@@ -40,9 +40,9 @@ public:
 		const auto& is_in = [](auto v, auto l) { for (const auto& i : l) if (v == i) return true; return false; };
 		const auto& is_digit = [](char c) { return c > char(47) and c < char(58); };
 		const auto& add_include = [&](const str& s) { if (!is_in(s, rule_includes)) rule_includes.push_back(s); };
-		const auto& go_end = [&](auto& it, auto& val, const auto& ch1, const auto& ch2) {
+		const auto& go_end = [&](auto& it, auto& val, const auto& ch) {
 			int bc = 0, cc = 0, sc = 0;
-			while (!(bc == 0 and cc == 0 and sc == 0 and (*it == ch1 or *it == ch2))) {
+			while (!(bc == 0 and cc == 0 and sc == 0 and *it == ch)) {
 				if		(*it == "(") bc++;
 				else if (*it == ")") bc--;
 				else if (*it == "{") cc++;
@@ -157,11 +157,24 @@ public:
 				it+=2;
 				const str& name = "__operator_"s + *it;
 				it+=2;
-				go_end(it, args, ",", ")");
+				go_end(it, args, ")");
 				it++;
 				it++;
-				go_end(it, body, "}", "");
+				go_end(it, body, "}");
 				temp_split.push_back(rule_space + type + ' ' + name + '(' + args + ')' + "{ " + body + " }" + "}\n");
+			}
+			else if (i == "fn") {
+				it++;
+				const str& fn_name = *it;
+				it++;
+				it++;
+				str args, body, type = "auto";
+				go_end(it, args, ")");
+				it++;
+				if (*it == "->") it++, type = *it;
+				it++;
+				go_end(it, body, "}");
+				temp_split.push_back("struct { "s + type + " operator()(" + args + ')' + '{' + body + '}' + fn_name + ';');
 			}
 			else if (is_in(i, user_ops)) {
 				str op, var, v;
@@ -230,7 +243,7 @@ public:
 		for (auto it = split.begin(); it != split.end(); it++) {
 			ac += *it;
 			if (it + 1 != split.end())
-				if (*it == ";" or *it == "{" or *it == "}") {
+				if (it->ends_with(";") or it->ends_with("{") or it->ends_with("}") or it->ends_with(";")) {
 					if (*it == "{") tab++;
 					else if (*it == "}") {
 						if (*(ac.end() - 2) == '\t')
