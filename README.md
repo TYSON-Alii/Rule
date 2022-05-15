@@ -15,7 +15,7 @@ features;
 - [x] #operator
 - [ ] typespace
 - [ ] dotspace
-- [ ] nested functions
+- [x] nested functions
 - [ ] #try, #catch, #endtry
 - [ ] function, variable aliasing
 ```cpp
@@ -43,6 +43,10 @@ auto main() -> int {
 		echo "evet.";
 	}
 	/* amazing comment */
+	fn func(int wow) {
+		cout << "falanke filanke\n";
+	}
+	func(31);
 	return 0;
 }
 int operator filan(int v) {
@@ -94,6 +98,8 @@ auto main()->int{
         if (2+2==4){
                 __cxx_rule::__operator_echo("evet.");
         }
+        struct { auto operator()(int wow){cout<<"falanke filanke\n"; }func;
+        func(31);
         return 0;
 }
 namespace __cxx_rule { int __operator_filan(int v){ cout<<"oyle iste: "<<v<<'\n'; return v+42;  }}
