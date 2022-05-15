@@ -44,7 +44,7 @@ auto main() -> int {
 	}
 	/* amazing comment */
 	return 0;
-};
+}
 int operator filan(int v) {
 	cout << "oyle iste: " << v << '\n';
 	return v + 42;
@@ -61,11 +61,11 @@ auto main() -> int {
 // OUTPUT:
 #include <string>
 #include <vector>
-namespace __cxx_rule {
 namespace std {
         inline string to_string(string s) { return s; };
         inline string to_string(string* s) { return *s; };
 };
+namespace __cxx_rule {
 auto __dotdot_op(auto beg, auto end) {
         std::vector<decltype(beg)> list;
         if (beg < end) for (auto i = beg; i < end; i++) list.push_back(i);
@@ -79,14 +79,12 @@ void __operator_echo();
 };
 
 namespace __cxx_rule { void __operator_falan(int v){ cout<<"falanke filanke: "<<v<<'\n';  }}
- inline namespace __cxx_rule { inline auto __operator_echo(auto v){ return cout<<v<<'\n';  }}
- #ifdef M_PI
- #undef M_PI
- #define M_PI 3.14f
- #else
- #define M_PI 3.14f
- #endif
- auto main()->int{
+namespace __cxx_rule { inline auto __operator_echo(auto v){ return cout<<v<<'\n';  }}
+#ifdef M_PI
+#undef M_PI
+#endif
+#define M_PI 3.14f
+auto main()->int{
         str hello="Hello";
         std::cout<<(std::to_string(hello+"wo") + std::string(", World."))<<'\n';
         str falanke=R"__cxx_rule(C:\wow\amazing)__cxx_rule";
@@ -98,6 +96,5 @@ namespace __cxx_rule { void __operator_falan(int v){ cout<<"falanke filanke: "<<
         }
         return 0;
 }
-;
 namespace __cxx_rule { int __operator_filan(int v){ cout<<"oyle iste: "<<v<<'\n'; return v+42;  }}
 ```
