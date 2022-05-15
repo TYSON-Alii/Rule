@@ -40,6 +40,20 @@ public:
 		const auto& is_in = [](auto v, auto l) { for (const auto& i : l) if (v == i) return true; return false; };
 		const auto& is_digit = [](char c) { return c > char(47) and c < char(58); };
 		const auto& add_include = [&](const str& s) { if (!is_in(s, rule_includes)) rule_includes.push_back(s); };
+		const auto& go_end = [&](auto& it, auto& val, const auto& ch1, const auto& ch2) {
+			int bc = 0, cc = 0, sc = 0;
+			while (!(bc == 0 and cc == 0 and sc == 0 and (*it == ch1 or *it == ch2))) {
+				if		(*it == "(") bc++;
+				else if (*it == ")") bc--;
+				else if (*it == "{") cc++;
+				else if (*it == "}") cc--;
+				else if (*it == "[") sc++;
+				else if (*it == "]") sc--;
+				val += *it;
+				if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or !is_in(*it, ops) and !is_in(*(it + 1), ops)) val += ' ';
+				it++;
+			};
+		};
 		split = split_code(code);
 		list<str> temp_split;
 		str temp_str;
@@ -47,16 +61,6 @@ public:
 			auto& i = *it;
 			const auto& it1 = it + 1;
 			if (i.starts_with("//") or i.starts_with("/*")) continue;
-			else if (i.starts_with("`")) {
-				add_include("string");
-				if (!is_in("str", add_func)) add_func.push_back("str");
-				temp_split.push_back("R\"__cxx_rule("s + str(i.begin() + 1, i.end() - 1) + ")__cxx_rule\"");
-			}
-			else if (i.starts_with("f\"")) {
-				add_include("string");
-				if (!is_in("str", add_func)) add_func.push_back("str");
-				temp_split.push_back(parse_fliteral(str(i.begin() + 2, i.end() - 1)));
-			}
 			else if (i.starts_with("#redefine ")) {
 				const str& s = str(i.begin() + 10, i.end()-1);
 				const auto& f = std::find_if(s.begin(), s.end(), [](auto ch) { return std::isspace(ch); });
@@ -64,55 +68,99 @@ public:
 				const str& val = str(f, s.end());
 				temp_split.push_back("#ifdef "s + m + '\n');
 				temp_split.push_back("#undef "s + m + '\n');
-				temp_split.push_back("#define "s + s + '\n');
-				temp_split.push_back("#else\n"s);
-				temp_split.push_back("#define "s + s + '\n');
 				temp_split.push_back("#endif"s + '\n');
+				temp_split.push_back("#define "s + s + '\n');
 			}
 			else if (i.starts_with("#operator ")) {
 				const auto& s = str(i.begin() + 10, i.end() - 1);
 				rule_user_ops.push_back(rule_user_op + s + "();");
 				user_ops.push_back(s);
 			}
-			else if (i == "operator" and is_in(*it1, user_ops)) {
-				temp_split.pop_back();
-				it--;
-				str type, args, body;
-				const str& t = *it;
-				it--;
-				while (is_in(*it, tokens)) it--;
-				it++;
-				while (*it != t) type += *it + ' ', it++;
-				type += t;
-				it+=2;
-				const str& name = "__operator_"s + *it;
-				it++;
+			else if (it1 != split.end()) {
+				auto& i1 = *it1;
+				if (i == "::") {
+					if (it != split.begin() and !(is_in(*(it - 1), tokens) or is_in(*(it - 1), keywords)))
+						temp_split.back() += i + i1;
+					else
+						temp_split.push_back(i + i1);
+					it++;
+				}
+				else if (i == ".") {
+					if (it != split.begin() and !(is_in(*(it - 1), tokens) or is_in(*(it - 1), keywords)))
+						temp_split.back() += i + i1;
+					else
+						temp_split.push_back(i + i1);
+					it++;
+				}
+				else if (i == "operator" and is_in(i1, ops)) {
+					temp_split.push_back(i + i1);
+					it++;
+				}
+				else
+					temp_split.push_back(i);
+			}
+			else
+				temp_split.push_back(i);
+		};
+		split = temp_split;
+		temp_split.clear();
+		// 2nd iterate
+		for (auto it = split.begin(); it != split.end(); it++) {
+			const auto& i = *it;
+			const auto& it1 = it + 1;
+			if (i.starts_with("`")) {
+				add_include("string");
+				rule_to_string_funcs.add = true;
+				temp_split.push_back("R\"__cxx_rule("s + str(i.begin() + 1, i.end() - 1) + ")__cxx_rule\"");
+			}
+			else if (i.starts_with("f\"")) {
+				add_include("string");
+				rule_to_string_funcs.add = true;
+				temp_split.push_back(parse_fliteral(str(i.begin() + 2, i.end() - 1)));
+			}
+			else if (is_in(i, rbracket)) {
+				temp_split.push_back(i);
+				temp_split.push_back("(");
 				it++;
 				int bc = 0, cc = 0, sc = 0;
-				while (!(bc == 0 and cc == 0 and sc == 0 and (*it == "," or *it == ")"))) {
-					if		(*it == "(") bc++;
-					else if (*it == ")") bc--;
-					else if (*it == "{") cc++;
-					else if (*it == "}") cc--;
-					else if (*it == "[") sc++;
-					else if (*it == "]") sc--;
-					args += *it;
-					if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or !is_in(*it, ops) and !is_in(*(it + 1), ops)) args += ' ';
+				while (!(bc == 0 and cc == 0 and sc == 0 and *it == "{")) {
+					if (*it == "(")
+						bc++;
+					else if (*it == ")")
+						bc--;
+					else if (*it == "{")
+						cc++;
+					else if (*it == "}")
+						cc--;
+					else if (*it == "[")
+						sc++;
+					else if (*it == "]")
+						sc--;
+					temp_split.push_back(*it);
 					it++;
 				};
-				it++;
-				it++;
-				while (!(bc == 0 and cc == 0 and sc == 0 and *it == "}")) {
-					if		(*it == "(") bc++;
-					else if (*it == ")") bc--;
-					else if (*it == "{") cc++;
-					else if (*it == "}") cc--;
-					else if (*it == "[") sc++;
-					else if (*it == "]") sc--;
-					body += *it;
-					if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or !is_in(*it, ops) and !is_in(*(it + 1), ops)) body += ' ';
+				temp_split.push_back(")");
+				temp_split.push_back("{");
+			}
+			else if (i == "operator" and is_in(*it1, user_ops)) {
+				str type, args, body;
+				temp_split.pop_back();
+				it--;
+				const auto t = it;
+				if (it != split.begin()) {
+					it--;
+					while (it != split.begin() and !temp_split.empty() and is_in(*it, tokens)) temp_split.pop_back(), it--;
 					it++;
+					while (it != t) type += *it + ' ', it++;
 				};
+				type += *t;
+				it+=2;
+				const str& name = "__operator_"s + *it;
+				it+=2;
+				go_end(it, args, ",", ")");
+				it++;
+				it++;
+				go_end(it, body, "}", "");
 				temp_split.push_back(rule_space + type + ' ' + name + '(' + args + ')' + "{ " + body + " }" + "}\n");
 			}
 			else if (is_in(i, user_ops)) {
@@ -155,65 +203,11 @@ public:
 						temp_split.push_back(to_string(beg));
 				}
 				else {
-					if (!is_in("dotdot", add_func)) add_func.push_back("dotdot"), add_include("vector");
+					rule_dotdot_op.add = true;
+					add_include("vector");
 					temp_split.push_back("__cxx_rule::dotdot_op("s + *(it - 1) + ',' + *(it + 1) + ')');
 				};
 				it++;
-			}
-			else if (it1 != split.end()) {
-				auto& i1 = *it1;
-				if (i == "::") {
-					if (it != split.begin() and !(is_in(*(it - 1), tokens) or is_in(*(it - 1), keywords)))
-						temp_split.back() += i + i1;
-					else
-						temp_split.push_back(i + i1);
-					it++;
-				}
-				else if (i == ".") {
-					if (it != split.begin() and !(is_in(*(it - 1), tokens) or is_in(*(it - 1), keywords)))
-						temp_split.back() += i + i1;
-					else
-						temp_split.push_back(i + i1);
-					it++;
-				}
-				else if (i == "operator" and is_in(i1, ops)) {
-					temp_split.push_back(i + i1);
-					it++;
-				}
-				else
-					temp_split.push_back(i);
-			}
-			else
-				temp_split.push_back(i);
-		};
-		split = temp_split;
-		temp_split.clear();
-		// 2nd iterate
-		for (auto it = split.begin(); it != split.end(); it++) {
-			const auto& i = *it;
-			if (is_in(i, rbracket)) {
-				temp_split.push_back(i);
-				temp_split.push_back("(");
-				it++;
-				int bc = 0, cc = 0, sc = 0;
-				while (!(bc == 0 and cc == 0 and sc == 0 and *it == "{")) {
-					if (*it == "(")
-						bc++;
-					else if (*it == ")")
-						bc--;
-					else if (*it == "{")
-						cc++;
-					else if (*it == "}")
-						cc--;
-					else if (*it == "[")
-						sc++;
-					else if (*it == "]")
-						sc--;
-					temp_split.push_back(*it);
-					it++;
-				};
-				temp_split.push_back(")");
-				temp_split.push_back("{");
 			}
 			else
 				temp_split.push_back(i);
@@ -224,13 +218,11 @@ public:
 		ac.clear();
 		for (const auto& i : rule_includes)
 			ac += "#include <"s + i + ">\n";
+		if (rule_to_string_funcs.add)
+			ac += rule_to_string_funcs.code;
 		ac += rule_space + '\n';
-		for (const auto& f : add_func) {
-			if (f == "dotdot")
-				ac += rule_dotdot_op;
-			else if (f == "str")
-				ac += rule_to_string_funcs;
-		};
+		if (rule_dotdot_op.add)
+			ac += rule_dotdot_op.code;
 		for (const auto& op : rule_user_ops)
 			ac += op + '\n';
 		ac += "};\n\n";
@@ -241,37 +233,42 @@ public:
 				if (*it == ";" or *it == "{" or *it == "}") {
 					if (*it == "{") tab++;
 					else if (*it == "}") {
-						if (*(ac.end()-2) == '\t')
-							ac.erase(ac.end()-2);
+						if (*(ac.end() - 2) == '\t')
+							ac.erase(ac.end() - 2);
 						tab--;
 					};
 					ac += '\n';
 					for (uint i = 0; i < tab; i++)
 						ac += '\t';
 				}
-				else if (!it->ends_with("\n") and (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or !is_in(*it, ops) and !is_in(*(it + 1), ops) or is_in(*it, keywords) or is_in(*it, tokens))
-					ac += ' ';
+				else if (!ac.ends_with("\n"))
+					if (*(it + 1) == "}" or !is_in(*it, ops) and !is_in(*(it + 1), ops) or is_in(*it, keywords) or is_in(*it, tokens))
+						ac += ' ';
 		};
 		return afterCode;
 	};
 	list<str> split;
 	str afterCode;
 private:
-	list<str> add_func, user_ops, rule_user_ops, rule_includes;
+	list<str> user_ops, rule_user_ops, rule_includes;
 	const str& rule_space = "namespace __cxx_rule { ";
-	const str& rule_dotdot_op = R"(auto __dotdot_op(auto beg, auto end) {
+	struct fn_t {
+		bool add = false;
+		const str code;
+	};
+	fn_t rule_dotdot_op { false, R"(auto __dotdot_op(auto beg, auto end) {
 	std::vector<decltype(beg)> list;
 	if (beg < end) for (auto i = beg; i < end; i++) list.push_back(i);
 	else if (beg > end) for (auto i = beg; i > end; i--) list.push_back(i);
 	else list.push_back(beg);
 	return list;
 };
-)";
-	const str& rule_to_string_funcs = R"(namespace std {
+)" };
+	fn_t rule_to_string_funcs = { false, R"(namespace std {
 	inline string to_string(string s) { return s; };
 	inline string to_string(string* s) { return *s; };
 };
-)";
+)" };
 	const str& rule_user_op = "void __operator_";
 	list<str> split_code(const str& code) {
 		const auto& is_in = [](auto v, auto l)  { for (const auto& i : l) if (v == i) return true; return false; };
