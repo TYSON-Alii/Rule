@@ -46,7 +46,7 @@ auto main() -> int {
 	fn func(int wow) {
 		cout << "falanke filanke\n";
 	}
-	func(31);
+	func(3);
 	return 0;
 }
 int operator filan(int v) {
@@ -99,7 +99,7 @@ auto main()->int{
                 __cxx_rule::__operator_echo("evet.");
         }
         struct { auto operator()(int wow){cout<<"falanke filanke\n"; }func;
-        func(31);
+        func(3);
         return 0;
 }
 namespace __cxx_rule { int __operator_filan(int v){ cout<<"oyle iste: "<<v<<'\n'; return v+42;  }}
