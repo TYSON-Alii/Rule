@@ -7,12 +7,13 @@ class Rule {
 public:
 	using str = string;
 	using uint = unsigned int;
+	using byte = unsigned char;
 	template <typename T>
 	using list = pmr::vector<T>;
 	struct lit_not_in { char beg, end; };
-	struct lit_pair { lit_pair(const str& b, const str& e, const lit_not_in& l, const bool& bs, const bool& ln_p) : beg(b), end(e), not_in(l), bslash(bs), ln_problem(ln_p) { }; str beg, end; lit_not_in not_in; bool bslash, ln_problem; };
+	struct lit_pair { lit_pair(const str& b, const str& e, const lit_not_in& l, bool bs, bool ln_p, bool a_b, bool a_e) : beg(b), end(e), not_in(l), bslash(bs), ln_problem(ln_p), add_beg(a_b), add_end(a_e) { }; str beg, end; lit_not_in not_in; bool bslash, ln_problem, add_beg, add_end; };
 	list<str> tokens {"const", "constexpr", "virtual", "static", "inline", "explicit", "friend", "volatile", "register", "short", "long", "signed", "unsigned" };
-	list<str> keywords { "fn", "return", "break", "case", "catch", "class", "concept", "continue", "decltype", "default", "delete", "do", "else", "if", "enum", "export", "extern", "for", "goto", "namespace", "new", "noexcept", "operator", "private", "public", "protected", "requires", "sizeof", "struct", "switch", "template", "throw", "try", "typedef", "typename", "union", "while" };
+	list<str> keywords { "fn", "auto", "return", "break", "case", "catch", "class", "concept", "continue", "decltype", "default", "delete", "do", "else", "if", "enum", "export", "extern", "for", "goto", "namespace", "new", "noexcept", "operator", "private", "public", "protected", "requires", "sizeof", "struct", "switch", "template", "throw", "try", "typedef", "typename", "union", "while" };
 	list<str> rbracket {"if", "while" };
 	list<str> ops {
 		"{", "}","[", "]", "(", ")", "<", ">", "=", "+", "-", "/", "*", "%", "&", "|", "^", ".", ":", ",", ";", "?",
@@ -20,20 +21,21 @@ public:
 		"<=>", "<<=", ">>=", "...", "==="
 	};
 	list<lit_pair> lits {
-		lit_pair("\"","\"", {'\0','\0'}, true, true),
-		lit_pair("'","'", {'\0','\0'}, true, true),
-		lit_pair("//","\n", {'\0','\0'}, true, false),
-		lit_pair("/*","*/", {'\0','\0'}, false, false),
-		lit_pair("#","\n", {'\0','\0'}, true, false),
-		lit_pair("`","`", {'\0','\0'}, false, false),
-		lit_pair("f\"","\"", {'{','}'}, true, true)
+		lit_pair("\"","\"", {'\0','\0'}, true, true, true, true),
+		lit_pair("'","'", {'\0','\0'}, true, true, true, true),
+		lit_pair("//","\n", {'\0','\0'}, true, false, true, false),
+		lit_pair("/*","*/", {'\0','\0'}, false, false, true, true),
+		lit_pair("#","\n", {'\0','\0'}, true, false, true, false),
+		lit_pair("`","`", {'\0','\0'}, false, false, true, true),
+		lit_pair("f\"","\"", {'{','}'}, true, true, true, true)
 		// maybe later
 		// lit_pair("/+","+/", {'\0','\0'}, false)
 		// lit_pair("u8\"","\"", {'\0','\0'}, true)
 		// lit_pair("L\"","\"", {'\0','\0'}, true)
 		// lit_pair("[[","]]", {'\0','\0'}, false)
 	};
-	//struct sstr : str { sstr() = default; sstr(const sstr&) = default; sstr(const str& s) : str(s) { }; str after; };
+	enum class word : byte { no, keyw, op, token, number, lit };
+	struct Word : str { using str::basic_string; Word() = default; Word(const Word&) = default; Word(const str& s) : str(s) { }; word type = word::no; };
 	Rule() = default;
 	Rule(const str& _code) : code(_code) { parse(); };
 	str parse() {
@@ -55,7 +57,7 @@ public:
 			};
 		};
 		split = split_code(code);
-		list<str> temp_split;
+		list<Word> temp_split;
 		str temp_str;
 		for (auto it = split.begin(); it != split.end(); it++) {
 			auto& i = *it;
@@ -66,14 +68,13 @@ public:
 				const auto& f = std::find_if(s.begin(), s.end(), [](auto ch) { return std::isspace(ch); });
 				const str& m = str(s.begin(), f);
 				const str& val = str(f, s.end());
-				temp_split.push_back("#ifdef "s + m + '\n');
-				temp_split.push_back("#undef "s + m + '\n');
-				temp_split.push_back("#endif"s + '\n');
-				temp_split.push_back("#define "s + s + '\n');
+				temp_split.push_back("#ifdef "s + m);
+				temp_split.push_back("#undef "s + m);
+				temp_split.push_back("#endif"s);
+				temp_split.push_back("#define "s + s);
 			}
 			else if (i.starts_with("#operator ")) {
-				const auto& s = str(i.begin() + 10, i.end() - 1);
-				rule_user_ops.push_back(rule_user_op + s + "();");
+				const auto& s = str(i.begin() + 10, i.end());
 				user_ops.push_back(s);
 			}
 			else if (it1 != split.end()) {
@@ -108,7 +109,7 @@ public:
 		for (auto it = split.begin(); it != split.end(); it++) {
 			const auto& i = *it;
 			const auto& it1 = it + 1;
-			if (i.starts_with("`")) {
+			if (i.back() == '`') {
 				add_include("string");
 				rule_to_string_funcs.add = true;
 				temp_split.push_back("R\"__cxx_rule("s + str(i.begin() + 1, i.end() - 1) + ")__cxx_rule\"");
@@ -117,10 +118,14 @@ public:
 				add_include("string");
 				rule_to_string_funcs.add = true;
 				temp_split.push_back(parse_fliteral(str(i.begin() + 2, i.end() - 1)));
+				more = true;
 			}
 			else if (is_in(i, rbracket)) {
 				temp_split.push_back(i);
-				temp_split.push_back("(");
+				Word t;
+				t = "(";
+				t.type = word::op;
+				temp_split.push_back(t);
 				it++;
 				int bc = 0, cc = 0, sc = 0;
 				while (!(bc == 0 and cc == 0 and sc == 0 and *it == "{")) {
@@ -139,7 +144,10 @@ public:
 					temp_split.push_back(*it);
 					it++;
 				};
+				t.type = word::op;
+				t = ")";
 				temp_split.push_back(")");
+				t = "{";
 				temp_split.push_back("{");
 			}
 			else if (i == "operator" and is_in(*it1, user_ops)) {
@@ -162,6 +170,7 @@ public:
 				it++;
 				go_end(it, body, "}");
 				temp_split.push_back(rule_space + type + ' ' + name + '(' + args + ')' + "{ " + body + " }" + "}\n");
+				more = true;
 			}
 			else if (i == "fn") {
 				it++;
@@ -174,32 +183,13 @@ public:
 				if (*it == "->") it++, type = *it;
 				it++;
 				go_end(it, body, "}");
+				body += '}';
 				temp_split.push_back("struct { "s + type + " operator()(" + args + ')' + '{' + body + '}' + fn_name + ';');
-			}
-			else if (is_in(i, user_ops)) {
-				str op, var, v;
-				list<str> vl;
-				uint op_c = 1;
-				op = i;
-				it++;
-				var = *it;
-				vl.push_back("__cxx_rule::__operator_"s + op);
-				while (is_in(var, user_ops)) {
-					op_c++;
-					op = var;
-					it++;
-					var = *it;
-					vl.push_back("__cxx_rule::__operator_"s + op);
-				}
-				for (const str& s : vl) v += s + '(';
-				v += var;
-				for (uint i = 0; i < op_c; i++) v += ')';
-				temp_split.push_back(v);
+				more = true;
 			}
 			else if (i == "..") {
 				temp_split.pop_back();
-				if ((((it - 1)->front() == '-' and all_of((it - 1)->begin() + 1, (it - 1)->end(), is_digit)) or all_of((it - 1)->begin(), (it - 1)->end(), is_digit)) and
-					(((it + 1)->front() == '-' and all_of((it + 1)->begin() + 1, (it + 1)->end(), is_digit)) or all_of((it + 1)->begin(), (it + 1)->end(), is_digit))) {
+				if ((it-1)->type == word::number and (it+1)->type == word::number) {
 					const auto& beg = stoi(*(it - 1));
 					const auto& end = stoi(*(it + 1));
 					if (beg < end) {
@@ -218,9 +208,31 @@ public:
 				else {
 					rule_dotdot_op.add = true;
 					add_include("vector");
-					temp_split.push_back("__cxx_rule::dotdot_op("s + *(it - 1) + ',' + *(it + 1) + ')');
+					temp_split.push_back("__cxx_rule::__dotdot_op("s + *(it - 1) + ',' + *(it + 1) + ')');
 				};
 				it++;
+			}
+			else if (is_in(i, user_ops)) {
+				str op, var;
+				Word v;
+				list<str> vl;
+				uint op_c = 1;
+				op = i;
+				it++;
+				var = *it;
+				vl.push_back("__cxx_rule::__operator_"s + op);
+				while (is_in(var, user_ops)) {
+					op_c++;
+					op = var;
+					it++;
+					var = *it;
+					vl.push_back("__cxx_rule::__operator_"s + op);
+				}
+				for (const str& s : vl) v += s + '(';
+				v += var;
+				v.type = word::no;
+				for (uint i = 0; i < op_c; i++) v += ')';
+				temp_split.push_back(v);
 			}
 			else
 				temp_split.push_back(i);
@@ -229,20 +241,22 @@ public:
 		temp_split.clear();
 		auto& ac = afterCode;
 		ac.clear();
-		for (const auto& i : rule_includes)
-			ac += "#include <"s + i + ">\n";
-		if (rule_to_string_funcs.add)
-			ac += rule_to_string_funcs.code;
-		ac += rule_space + '\n';
-		if (rule_dotdot_op.add)
-			ac += rule_dotdot_op.code;
-		for (const auto& op : rule_user_ops)
-			ac += op + '\n';
-		ac += "};\n\n";
+		if (!more) {
+			for (const auto& i : rule_includes)
+				ac += "#include <"s + i + ">\n";
+			if (rule_to_string_funcs.add)
+				ac += rule_to_string_funcs.code;
+			ac += rule_space + '\n';
+			if (rule_dotdot_op.add)
+				ac += rule_dotdot_op.code;
+			ac += "};\n\n";
+		}
 		uint tab = 0;
 		for (auto it = split.begin(); it != split.end(); it++) {
 			ac += *it;
-			if (it + 1 != split.end())
+			if (it->starts_with("#"))
+				ac += '\n';
+			else if (it + 1 != split.end())
 				if (it->ends_with(";") or it->ends_with("{") or it->ends_with("}") or it->ends_with(";")) {
 					if (*it == "{") tab++;
 					else if (*it == "}") {
@@ -257,13 +271,19 @@ public:
 				else if (!ac.ends_with("\n"))
 					if (*(it + 1) == "}" or !is_in(*it, ops) and !is_in(*(it + 1), ops) or is_in(*it, keywords) or is_in(*it, tokens))
 						ac += ' ';
-		};
+		}
+		if (more) {
+			more = false;
+			code = afterCode;
+			parse();
+		}
 		return afterCode;
 	};
-	list<str> split;
-	str afterCode;
+	bool more = false;
+	list<Word> split;
+	str code, afterCode;
 private:
-	list<str> user_ops, rule_user_ops, rule_includes;
+	list<str> user_ops, rule_includes;
 	const str& rule_space = "namespace __cxx_rule { ";
 	struct fn_t {
 		bool add = false;
@@ -282,18 +302,32 @@ private:
 	inline string to_string(string* s) { return *s; };
 };
 )" };
-	const str& rule_user_op = "void __operator_";
-	list<str> split_code(const str& code) {
+	list<Word> split_code(const str& code) {
 		const auto& is_in = [](auto v, auto l)  { for (const auto& i : l) if (v == i) return true; return false; };
 		const auto& is_digit = [](char c)  { return c > char(47) and c < char(58); };
 		sort(ops.begin(), ops.end(), [](const str& first, const str& second){ return first.size() > second.size(); });
 		sort(lits.begin(), lits.end(), [](const auto& first, const auto& second){ return first.beg.size() > second.beg.size(); });
-		str temp_str;
-		list<str> split;
+		Word temp_str;
+		list<Word> split, temp_split;
+		const auto& is_number = [&](const str& s) {
+			if (s.empty() || ((!is_digit(s[0])) && (s[0] != '-') && (s[0] != '+'))) return false;
+			for (const auto& i : s) if (i != '.' and !is_digit(i)) return false;
+			return true;
+		};
 		const auto& new_splt = [&]() {
 			if (!temp_str.empty()) {
+				if (is_in(temp_str, ops))
+					temp_str.type = word::op;
+				else if (is_in(temp_str, tokens))
+					temp_str.type = word::token;
+				else if (is_number(temp_str))
+					temp_str.type = word::number;
+				else if (is_in(temp_str, keywords))
+					temp_str.type = word::keyw;
+				else
+					temp_str.type = word::no;
 				split.push_back(temp_str);
-				temp_str.clear();
+				temp_str = Word();
 			};
 		};
 		for (auto it = code.begin(); it != code.end(); it++) {
@@ -303,17 +337,6 @@ private:
 				new_splt();
 				continue;
 			}
-			else if (i == '-') {
-				if (is_digit(*(it + 1))) {
-					temp_str.clear();
-					temp_str += '-';
-					it++;
-					while (is_digit(*it)) temp_str += *it, it++;
-					new_splt();
-					it--;
-					continue;
-				};
-			}
 			for (const auto& l : lits) {
 				const auto& len = l.beg.size();
 				const auto& end_len = l.end.size();
@@ -322,7 +345,8 @@ private:
 					if (s == l.beg) {
 						new_splt();
 						it += len;
-						temp_str += l.beg;
+						if (l.add_beg)
+							temp_str += l.beg;
 						int not_c = 0;
 						while (true) {
 							const str& s = str(it, it + end_len);
@@ -337,7 +361,6 @@ private:
 								it++;
 							}
 							else if (l.bslash and s == l.end and *(it - 1) == '\\') {
-								temp_str.pop_back();
 								temp_str += *it;
 								it++;
 							}
@@ -348,8 +371,11 @@ private:
 									temp_str += *it, it++;
 						};
 						it += end_len - 1;
-						split.push_back(temp_str + l.end);
-						temp_str.clear();
+						temp_str.type = word::lit;
+						if (l.add_end)
+							temp_str += l.end;
+						split.push_back(temp_str);
+						temp_str = Word();
 						goto _exit;
 					};
 				};
@@ -361,7 +387,8 @@ private:
 					if (s == op) {
 						new_splt();
 						it += len - 1;
-						split.push_back(s);
+						temp_str = s;
+						new_splt();
 						goto _exit;
 					};
 				};
@@ -369,7 +396,26 @@ private:
 			temp_str += *it;
 		_exit:;
 		};
-		if (!temp_str.empty()) split.push_back(temp_str);
+		for (auto it = split.begin(); it != split.end(); it++) {
+			const auto& i = *it;
+			Word t;
+			if (is_digit(i.back())) {
+				t.type = word::number;
+				if (*(it - 1) == "-"s)
+					temp_split.pop_back(), t += '-';
+				t += i;
+				if (*(it + 1) == "."s) {
+					t += '.';
+					it++;
+					t += *(it + 1);
+					it++;
+				}
+			}
+			else
+				t = i;
+			temp_split.push_back(t);
+		}
+		split = temp_split;
 		return split;
 	};
 	str parse_fliteral(const str& code, const str& str_t = "std::string", const str& converter = "std::to_string") {
@@ -422,7 +468,6 @@ private:
 		s = "("s + s + ')';
 		return s;
 	};
-	str code;
 };
 ostream& operator<<(ostream& os, const Rule& rule) {
 	for (auto it = rule.split.begin(); it != rule.split.end(); it++) {
