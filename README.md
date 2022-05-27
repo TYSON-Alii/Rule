@@ -34,7 +34,7 @@ inline auto operator echo(auto v) { return cout << v << '\n'; }
 auto main() -> int {
 	// comment
 	str hello = "Hello";
-	std::cout << f"{hello+"wo"}, World." << '\n';
+	std::cout << f"{hello+f"wow {31}"}, World." << '\n';
 	str falanke = `C:\wow\amazing`;
 	int begin = 10, end = 21;
 	for (auto&& i : beg..end) falan filan i;
@@ -44,9 +44,9 @@ auto main() -> int {
 	}
 	/* amazing comment */
 	fn func(int wow) {
-		cout << "falanke filanke\n";
+		cout << `falanke filanke\n`;
 	}
-	func(3);
+	func(31);
 	return 0;
 }
 int operator filan(int v) {
@@ -77,30 +77,45 @@ auto __dotdot_op(auto beg, auto end) {
         else list.push_back(beg);
         return list;
 };
-void __operator_falan();
-void __operator_filan();
-void __operator_echo();
 };
 
-namespace __cxx_rule { void __operator_falan(int v){ cout<<"falanke filanke: "<<v<<'\n';  }}
-namespace __cxx_rule { inline auto __operator_echo(auto v){ return cout<<v<<'\n';  }}
+namespace __cxx_rule{
+        void __operator_falan(int v){
+                cout<<"falanke filanke: "<<v<<'\n';
+        }
+}
+namespace __cxx_rule{
+        inline auto __operator_echo(auto v){
+                return cout<<v<<'\n';
+        }
+}
 #ifdef M_PI
 #undef M_PI
 #endif
-#define M_PI 3.14f
+#define M_PI 3.14
 auto main()->int{
         str hello="Hello";
-        std::cout<<(std::to_string(hello+"wo") + std::string(", World."))<<'\n';
-        str falanke=R"__cxx_rule(C:\wow\amazing)__cxx_rule";
+        std::cout<<(std::to_string(hello+(std::string("wow ")))+std::string(", World."))<<'\n';
+        str falanke=R "__cxx_rule(C:\wow\amazing)__cxx_rule";
         int begin=10,end=21;
-        for (auto&&i:__cxx_rule::dotdot_op(beg,end))__cxx_rule::__operator_falan(__cxx_rule::__operator_filan(i));
+        for (auto &&i:__cxx_rule::__dotdot_op(beg,end))__cxx_rule::__operator_falan(__cxx_rule::__operator_filan(i));
         cuske.ohake=1.f;
-        if (2+2==4){
+        if (((2+2==4))){
                 __cxx_rule::__operator_echo("evet.");
         }
-        struct { auto operator()(int wow){cout<<"falanke filanke\n"; }func;
-        func(3);
+        struct {
+                auto operator()(int wow){
+                        cout<<R "__cxx_rule(falanke filanke\n)__cxx_rule";
+                }
+        }
+        func;
+        func(31);
         return 0;
 }
-namespace __cxx_rule { int __operator_filan(int v){ cout<<"oyle iste: "<<v<<'\n'; return v+42;  }}
+namespace __cxx_rule{
+        int __operator_filan(int v){
+                cout<<"oyle iste: "<<v<<'\n';
+                return v+42;
+        }
+        }
 ```
