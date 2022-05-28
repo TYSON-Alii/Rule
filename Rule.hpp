@@ -16,8 +16,8 @@ public:
 	list<str> keywords { "fn", "auto", "return", "break", "case", "catch", "class", "concept", "continue", "decltype", "default", "delete", "do", "else", "if", "enum", "export", "extern", "for", "goto", "namespace", "new", "noexcept", "operator", "private", "public", "protected", "requires", "sizeof", "struct", "switch", "template", "throw", "try", "typedef", "typename", "union", "while" };
 	list<str> rbracket {"if", "while" };
 	list<str> ops {
-		"{", "}","[", "]", "(", ")", "<", ">", "=", "+", "-", "/", "*", "%", "&", "|", "^", ".", ":", ",", ";", "?",
-		"==", "!=", ">=", "<=", "<<", ">>", "--", "++", "&&", "||", "+=", "-=", "*=", "/=", "%=", "^=", "|=", "&=", "->", "::", "..",
+		"{", "}","[", "]", "(", ")", "<", ">", "=", "+", "-", "/", "*", "%", "&", "|", "^", ".", ":", ",", ";", "?", "@",
+		"==", "!=", ">=", "<=", "<<", ">>", "--", "++", "&&", "||", "+=", "-=", "*=", "/=", "%=", "^=", "|=", "&=", "->", "=>", "::", "..",
 		"<=>", "<<=", ">>=", "...", "==="
 	};
 	list<lit_pair> lits {
@@ -26,8 +26,10 @@ public:
 		lit_pair("//","\n", {'\0','\0'}, true, false, true, false),
 		lit_pair("/*","*/", {'\0','\0'}, false, false, true, true),
 		lit_pair("#","\n", {'\0','\0'}, true, false, true, false),
+		lit_pair("$","\n", {'\0','\0'}, true, false, true, false),
 		lit_pair("`","`", {'\0','\0'}, false, false, true, true),
-		lit_pair("f\"","\"", {'{','}'}, true, true, true, true)
+		lit_pair("f\"","\"", {'{','}'}, true, true, true, true),
+		lit_pair("R\"","\"", {'\0','\0'}, true, true, true, true)
 		// maybe later
 		// lit_pair("/+","+/", {'\0','\0'}, false)
 		// lit_pair("u8\"","\"", {'\0','\0'}, true)
@@ -52,7 +54,7 @@ public:
 				else if (*it == "[") sc++;
 				else if (*it == "]") sc--;
 				val += *it;
-				if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or !is_in(*it, ops) and !is_in(*(it + 1), ops)) val += ' ';
+				if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or it->type != word::op and (it + 1)->type != word::op or it->type == word::keyw or it->type == word::token) val += ' ';
 				it++;
 			};
 		};
@@ -73,7 +75,7 @@ public:
 				temp_split.push_back("#endif"s);
 				temp_split.push_back("#define "s + s);
 			}
-			else if (i.starts_with("#operator ")) {
+			else if (i.starts_with("$operator ")) {
 				const auto& s = str(i.begin() + 10, i.end());
 				user_ops.push_back(s);
 			}
@@ -167,10 +169,15 @@ public:
 				it+=2;
 				go_end(it, args, ")");
 				it++;
-				it++;
-				go_end(it, body, "}");
-				temp_split.push_back(rule_space + type + ' ' + name + '(' + args + ')' + "{ " + body + " }" + "}\n");
-				more = true;
+				if (*it == ";") {
+					temp_split.push_back(rule_space + type + ' ' + name + '(' + args + "); }\n");
+				}
+				else {
+					it++;
+					go_end(it, body, "}");
+					temp_split.push_back(rule_space + type + ' ' + name + '(' + args + ')' + "{ " + body + " }" + "}\n");
+					more = true;
+				}
 			}
 			else if (i == "fn") {
 				it++;
@@ -180,7 +187,7 @@ public:
 				str args, body, type = "auto";
 				go_end(it, args, ")");
 				it++;
-				if (*it == "->") it++, type = *it;
+				if (*it == "->") it++, type = *it, it++;
 				it++;
 				go_end(it, body, "}");
 				body += '}';
@@ -269,7 +276,7 @@ public:
 						ac += '\t';
 				}
 				else if (!ac.ends_with("\n"))
-					if (*(it + 1) == "}" or !is_in(*it, ops) and !is_in(*(it + 1), ops) or is_in(*it, keywords) or is_in(*it, tokens))
+					if (*(it + 1) == "}" or it->type != word::op and (it + 1)->type != word::op or it->type == word::keyw or it->type == word::token)
 						ac += ' ';
 		}
 		if (more) {
@@ -356,7 +363,7 @@ private:
 								not_c--;
 							if (*it == '\n' and l.ln_problem and *(it - 1) != '\\')
 								throw "errorke";
-							else if (s != l.end) {
+							if (s != l.end) {
 								temp_str += *it;
 								it++;
 							}
@@ -364,11 +371,14 @@ private:
 								temp_str += *it;
 								it++;
 							}
-							else
+							else if (s == l.end) {
 								if (not_c == 0)
 									break;
 								else
 									temp_str += *it, it++;
+							}
+							else
+								temp_str += *it, it++;
 						};
 						it += end_len - 1;
 						temp_str.type = word::lit;
@@ -396,15 +406,16 @@ private:
 			temp_str += *it;
 		_exit:;
 		};
+		if (!temp_str.empty()) new_splt();
 		for (auto it = split.begin(); it != split.end(); it++) {
 			const auto& i = *it;
 			Word t;
 			if (is_digit(i.back())) {
 				t.type = word::number;
-				if (*(it - 1) == "-"s)
+				if (it != split.begin() and *(it - 1) == "-"s)
 					temp_split.pop_back(), t += '-';
 				t += i;
-				if (*(it + 1) == "."s) {
+				if ((it + 1) != split.end() and *(it + 1) == "."s) {
 					t += '.';
 					it++;
 					t += *(it + 1);
@@ -452,7 +463,7 @@ private:
 					for (auto it = splt.begin(); it != splt.end(); it++) {
 						temp += *it;
 						if (it + 1 != splt.end())
-							if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or !is_in(*it, ops) and !is_in(*(it + 1), ops) or is_in(*it, keywords))
+							if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or it->type != word::op and (it + 1)->type != word::op or it->type == word::keyw)
 								temp += ' ';
 					};
 					s += temp + add_s;
