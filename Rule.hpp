@@ -124,6 +124,14 @@ public:
 			}
 			else if (is_in(i, rbracket)) {
 				temp_split.push_back(i);
+				if (*(it + 1) == "(") {
+					auto cit = it+2;
+					str c;
+					go_end(cit, c, ")");
+					cout << *cit << ", " << *(cit+1) << '\n';
+					if (*(cit + 1) == "{")
+						continue;
+				}
 				Word t;
 				t = "(";
 				t.type = word::op;
