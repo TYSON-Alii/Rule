@@ -5,6 +5,7 @@ features;
 - [ ] auto specifier after const keyword
 - [x] #redefine
 - [ ] #indefine
+- [ ] #wdefine (weak define)
 - [x] \` \` string literal
 - [ ] advanced macros; [],(),<>, ()[], (){}, ()<>," ",' ', and etc..
 - [ ] #rep, #repn, #endrep
