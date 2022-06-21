@@ -4,6 +4,7 @@ features;
 - [x] .. operator
 - [ ] auto specifier after const keyword
 - [x] #redefine
+- [ ] #indefine
 - [x] \` \` string literal
 - [ ] advanced macros; [],(),<>, ()[], (){}, ()<>," ",' ', and etc..
 - [ ] #rep, #repn, #endrep
