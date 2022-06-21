@@ -16,7 +16,7 @@ features;
 - [ ] infile keyword
 - [x] $operator
 - [ ] typespace
-- [ ] dotspace
+- [ ] : and . namespace operators (std:cout or std.cout)
 - [x] nested functions
 - [ ] #try, #catch, #endtry
 - [ ] function, variable aliasing
