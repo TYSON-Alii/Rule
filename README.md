@@ -7,7 +7,7 @@ features;
 - [ ] #indefine
 - [ ] #wdefine (weak define)
 - [x] \` \` string literal
-- [ ] advanced macros; [],(),<>, ()[], (){}, ()<>," ",' ', and etc..
+- [x] defs
 - [ ] #rep, #repn, #endrep
 - [ ] safe macros
 - [ ] local macros
@@ -26,7 +26,7 @@ $operator falan
 $operator filan
 $operator echo
 
-void operator falan(int v) {
+void operator falan(T v) {
 	cout << "falanke filanke: " << v << '\n';
 }
 int operator filan(int v); // declaration
@@ -34,20 +34,36 @@ inline auto operator echo(auto v) { return cout << v << '\n'; }
 
 #redefine M_PI 3.14f
 
+// brackets ( ), [ ], < >
+// separators ',', ':', ';'
+$def log[type:message] {
+	std::cerr << enum_name(type) << ':' << message;
+}
+$def log<mes> {
+	throw std::runtime_error(mes)
+}
+
 auto main() -> int {
 	// comment
 	str hello = "Hello";
+	enum class log_type { info, error, warning };
+	log[log_type::error:"oops.."];
 	std::cout << f"{hello+f"wow {31}."}, World." << '\n';
+	log<"falan filan kardwim">;
 	str falanke = `C:\wow\amazing`;
 	int begin = 10, end = 21;
 	for (auto&& i : beg..end) falan filan i;
-	cuske.ohake = 1.f;
 	if 2 + 2 == 4 { // require curly brackets
 		echo "evet.";
 	}
 	/* amazing comment */
 	fn func(int wow) {
-		cout << `falanke filanke\n`;
+		if true or false {
+			cout << `falanke filanke\n`;
+		}
+		fn func() {
+			// pass
+		}
 	}
 	func(31);
 	return 0;
@@ -83,7 +99,7 @@ auto __dotdot_op(auto beg, auto end) {
 };
 
 namespace __cxx_rule{
-        void __operator_falan(int v){
+        void __operator_falan(T v){
                 cout<<"falanke filanke: "<<v<<'\n';
         }
 }
@@ -101,17 +117,29 @@ namespace __cxx_rule{
 #define M_PI 3.14
 auto main()->int{
         str hello="Hello";
+        enum class log_type{
+                info,error,warning }
+        ;
+        std::cerr<<enum_name(log_type::error)<<':'<<"oops..";
+        ;
         std::cout<<(std::to_string(hello+(std::string("wow ")+std::to_string(31)+std::string(".")))+std::string(", World."))<<'\n';
+        throw std::runtime_error("falan filan kardwim");
         str falanke=R"__cxx_rule(C:\wow\amazing)__cxx_rule";
         int begin=10,end=21;
         for (auto &&i:__cxx_rule::__dotdot_op(beg,end))__cxx_rule::__operator_falan(__cxx_rule::__operator_filan(i));
-        cuske.ohake=1.f;
-        if (((2+2==4))) {
+        if (2+2==4){
                 __cxx_rule::__operator_echo("evet.");
         }
         struct {
                 auto operator()(int wow){
-                        cout<<R"__cxx_rule(falanke filanke\n)__cxx_rule";
+                        if (true||false){
+                                cout<<R"__cxx_rule(falanke filanke\n)__cxx_rule";
+                        }
+                        struct {
+                                auto operator()(){
+                                }
+                        }
+                        func;
                 }
         }
         func;
