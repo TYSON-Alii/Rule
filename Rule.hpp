@@ -88,6 +88,18 @@ public:
 				it++;
 			};
 		};
+		const auto& split_fn = [&](str s, str delimiter) {
+			uint pos_start = 0, pos_end, delim_len = delimiter.length();
+			str token;
+			list<string> res;
+			while ((pos_end = s.find(delimiter, pos_start)) != str::npos) {
+				token = s.substr(pos_start, pos_end - pos_start);
+				pos_start = pos_end + delim_len;
+				res.push_back(token);
+			}
+			res.push_back(s.substr(pos_start));
+			return res;
+		};
 		split = split_code(code);
 		list<Word> temp_split;
 		str temp_str;
@@ -136,6 +148,70 @@ public:
 				go_end(it,t,"}");
 				def.val = split_code(t);
 				defs.push_back(def);
+			}
+			else if (i.starts_with("$rep ")) {
+				str t = str(i.begin() + 5, i.end()), rep_str;
+				uint pos = 0;
+				for (const auto& i : t) {
+					if (rep_str.empty() and not is_digit(i))
+						cerr << "error..";
+					else if (is_digit(i))
+						rep_str += i;
+					else
+						break;
+					pos++;
+				}
+				uint rep_count = stoul(rep_str);
+				t = str(t.begin() + pos, t.end());
+				for (uint i = 0; i <= rep_count; i++) {
+					const str& i_str = to_string(i);
+					str c = t;
+					uint start_pos = 0;
+					while((start_pos = c.find("__n__", start_pos)) != str::npos) {
+						c.replace(start_pos, 5, i_str);
+						start_pos += i_str.length();
+					}
+					auto s = split_code(c);
+					temp_split.insert(temp_split.end(), s.begin(), s.end());
+				}
+			}
+			else if (i.starts_with("$rep[")) {
+				str counts = str(i.begin() + 5, i.begin() + i.find(']')), t = str(i.begin() + i.find(']') + 1, i.end());
+				const auto& splt_c = split_code(counts);
+				uint beg, end;
+				if (splt_c.size() == 3 and splt_c[1] == ":") {
+					beg = stoul(splt_c.front());
+					end = stoul(splt_c.back());
+				}
+				else
+					cerr << "errorke..";
+				if (beg < end) {
+					for (uint i = beg; i <= end; i++) {
+						const str& i_str = to_string(i);
+						str c = t;
+						uint start_pos = 0;
+						while ((start_pos = c.find("__n__", start_pos)) != str::npos) {
+							c.replace(start_pos, 5, i_str);
+							start_pos += i_str.length();
+						}
+						auto s = split_code(c);
+						temp_split.insert(temp_split.end(), s.begin(), s.end());
+					}
+				}
+				else if (beg > end) {
+					for (uint i = beg; i >= end; i--) {
+						const str& i_str = to_string(i);
+						str c = t;
+						uint start_pos = 0;
+						while ((start_pos = c.find("__n__", start_pos)) != str::npos) {
+							c.replace(start_pos, 5, i_str);
+							start_pos += i_str.length();
+						}
+						auto s = split_code(c);
+						temp_split.insert(temp_split.end(), s.begin(), s.end());
+						if (end == 0 and i == 0) break;
+					}
+				}
 			}
 			else if (is_macro(i)) {
 				Macro& macro = *find_if(macros.begin(), macros.end(), [&](const auto& m) { return m.name == i; });
