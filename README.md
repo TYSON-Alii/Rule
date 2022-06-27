@@ -9,7 +9,7 @@ features;
 - [x] \` \` string literal
 - [x] defs
 - [x] $rep, $rep[beg:end]
-- [ ] safe macros
+- [x] safe macros ($macro)
 - [ ] local macros
 - [x] removing parent bracket requiment
 - [ ] => operator for lambda
