@@ -10,6 +10,8 @@ public:
 	using byte = unsigned char;
 	template <typename T>
 	using list = pmr::vector<T>;
+	enum class word : byte { no, keyw, op, token, number, lit };
+	struct Word : str { using str::basic_string; Word() = default; Word(const Word&) = default; Word(const str& s) : str(s) { }; word type = word::no; };
 	struct lit_not_in { char beg, end; };
 	struct lit_pair { lit_pair(const str& b, const str& e, const lit_not_in& l, bool bs, bool ln_p, bool a_b, bool a_e) : beg(b), end(e), not_in(l), bslash(bs), ln_problem(ln_p), add_beg(a_b), add_end(a_e) { }; str beg, end; lit_not_in not_in; bool bslash, ln_problem, add_beg, add_end; };
 	list<str> tokens {"const", "constexpr", "virtual", "static", "inline", "explicit", "friend", "volatile", "register", "short", "long", "signed", "unsigned" };
@@ -20,12 +22,38 @@ public:
 		"==", "!=", ">=", "<=", "<<", ">>", "--", "++", "&&", "||", "+=", "-=", "*=", "/=", "%=", "^=", "|=", "&=", "->", "=>", "::", "..",
 		"<=>", "<<=", ">>=", "...", "==="
 	};
+	struct Macro {
+		str name, value;
+	};
+	list<Macro> macros = {
+		{{ "and" },{ "&&" }},
+		{{ "or" },{ "||" }},
+		{{ "bitand" },{ "&" }},
+		{{ "bitor" },{ "|" }},
+		{{ "not" },{ "!" }},
+		{{ "xor" },{ "^" }},
+		{{ "and_eq" },{ "&=" }},
+		{{ "or_eq" },{ "|=" }},
+		{{ "not_eq" },{ "!=" }},
+		{{ "xor_eq" },{ "^=" }}
+	};
+	struct Def {
+		str name;
+		struct {
+			str begin, end;
+		} bracket;
+		list<str> args;
+		list<str> seps;
+		list<Word> val;
+	};
+	list<Def> defs;
 	list<lit_pair> lits {
 		lit_pair("\"","\"", {'\0','\0'}, true, true, true, true),
 		lit_pair("'","'", {'\0','\0'}, true, true, true, true),
 		lit_pair("//","\n", {'\0','\0'}, true, false, true, false),
 		lit_pair("/*","*/", {'\0','\0'}, false, false, true, true),
 		lit_pair("#","\n", {'\0','\0'}, true, false, true, false),
+		lit_pair("$def","{", {'\0','\0'}, false, false, true, false),
 		lit_pair("$","\n", {'\0','\0'}, true, false, true, false),
 		lit_pair("`","`", {'\0','\0'}, false, false, true, true),
 		lit_pair("f\"","\"", {'{','}'}, true, true, true, true),
@@ -36,23 +64,25 @@ public:
 		// lit_pair("L\"","\"", {'\0','\0'}, true)
 		// lit_pair("[[","]]", {'\0','\0'}, false)
 	};
-	enum class word : byte { no, keyw, op, token, number, lit };
-	struct Word : str { using str::basic_string; Word() = default; Word(const Word&) = default; Word(const str& s) : str(s) { }; word type = word::no; };
 	Rule() = default;
 	Rule(const str& _code) : code(_code) { parse(); };
 	str parse() {
 		const auto& is_in = [](auto v, auto l) { for (const auto& i : l) if (v == i) return true; return false; };
+		const auto& is_macro = [&](const auto& v) { for (const auto& i : macros) if (v == i.name) return true; return false; };
+		const auto& is_def = [&](const auto& v) { for (const auto& i : defs) if (v == i.name) return true; return false; };
 		const auto& is_digit = [](char c) { return c > char(47) and c < char(58); };
 		const auto& add_include = [&](const str& s) { if (!is_in(s, rule_includes)) rule_includes.push_back(s); };
 		const auto& go_end = [&](auto& it, auto& val, const auto& ch) {
-			int bc = 0, cc = 0, sc = 0;
-			while (!(bc == 0 and cc == 0 and sc == 0 and *it == ch)) {
+			int bc = 0, cc = 0, sc = 0, tc = 0;
+			while (!(bc == 0 and cc == 0 and sc == 0 and tc == 0 and *it == ch)) {
 				if		(*it == "(") bc++;
 				else if (*it == ")") bc--;
 				else if (*it == "{") cc++;
 				else if (*it == "}") cc--;
 				else if (*it == "[") sc++;
 				else if (*it == "]") sc--;
+				else if (*it == "<") tc++;
+				else if (*it == ">") tc--;
 				val += *it;
 				if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or it->type != word::op and (it + 1)->type != word::op or it->type == word::keyw or it->type == word::token) val += ' ';
 				it++;
@@ -65,6 +95,55 @@ public:
 			auto& i = *it;
 			const auto& it1 = it + 1;
 			if (i.starts_with("//") or i.starts_with("/*")) continue;
+			else if (i.starts_with("$macro ")) {
+				str t(i.begin() + 6, i.end());
+				Macro macro;
+				uint pos = t.find_first_of(' ');
+				if (pos != str::npos) {
+					macro.name = str(t.begin(), t.begin() + pos);
+					macro.value = str(t.begin() + pos + 1, t.end());
+				}
+				else {
+					macro.name = t;
+				}
+				macros.push_back(macro);
+			}
+			else if (i.starts_with("$def ")) {
+				str t = str(i.begin() + 5, i.end());
+				Def def;
+				auto s = split_code(t);
+				auto itt = s.begin();
+				def.name = *itt;
+				itt++;
+				def.bracket.begin = *itt;
+				if (*itt == "(")
+					def.bracket.end = ")";
+				else if (*itt == "[")
+					def.bracket.end = "]";
+				else if (*itt == "<")
+					def.bracket.end = ">";
+				itt++;
+				bool c = false;
+				for (; *itt != def.bracket.end; itt++) {
+					if (not c)
+						def.args.push_back(*itt);
+					else
+						def.seps.push_back(*itt);
+					c = !c;
+				}
+				it++;
+				t.clear();
+				go_end(it,t,"}");
+				def.val = split_code(t);
+				defs.push_back(def);
+			}
+			else if (is_macro(i)) {
+				Macro& macro = *find_if(macros.begin(), macros.end(), [&](const auto& m) { return m.name == i; });
+				if (not macro.value.empty()) {
+					auto t = split_code(macro.value);
+					temp_split.insert(temp_split.end(), t.begin(), t.end());
+				}
+			}
 			else if (i.starts_with("#redefine ")) {
 				const str& s = str(i.begin() + 10, i.end()-1);
 				const auto& f = std::find_if(s.begin(), s.end(), [](auto ch) { return std::isspace(ch); });
@@ -128,7 +207,6 @@ public:
 					auto cit = it+2;
 					str c;
 					go_end(cit, c, ")");
-					cout << *cit << ", " << *(cit+1) << '\n';
 					if (*(cit + 1) == "{")
 						continue;
 				}
@@ -159,33 +237,6 @@ public:
 				temp_split.push_back(")");
 				t = "{";
 				temp_split.push_back("{");
-			}
-			else if (i == "operator" and is_in(*it1, user_ops)) {
-				str type, args, body;
-				temp_split.pop_back();
-				it--;
-				const auto t = it;
-				if (it != split.begin()) {
-					it--;
-					while (it != split.begin() and !temp_split.empty() and is_in(*it, tokens)) temp_split.pop_back(), it--;
-					it++;
-					while (it != t) type += *it + ' ', it++;
-				};
-				type += *t;
-				it+=2;
-				const str& name = "__operator_"s + *it;
-				it+=2;
-				go_end(it, args, ")");
-				it++;
-				if (*it == ";") {
-					temp_split.push_back(rule_space + type + ' ' + name + '(' + args + "); }\n");
-				}
-				else {
-					it++;
-					go_end(it, body, "}");
-					temp_split.push_back(rule_space + type + ' ' + name + '(' + args + ')' + "{ " + body + " }" + "}\n");
-					more = true;
-				}
 			}
 			else if (i == "fn") {
 				it++;
@@ -227,6 +278,104 @@ public:
 				};
 				it++;
 			}
+			else if (i == "operator" and is_in(*it1, user_ops)) {
+				str type, args, body;
+				temp_split.pop_back();
+				it--;
+				const auto t = it;
+				if (it != split.begin()) {
+					it--;
+					while (it != split.begin() and !temp_split.empty() and is_in(*it, tokens)) temp_split.pop_back(), it--;
+					it++;
+					while (it != t) type += *it + ' ', it++;
+				};
+				type += *t;
+				it+=2;
+				const str& name = "__operator_"s + *it;
+				it+=2;
+				go_end(it, args, ")");
+				it++;
+				if (*it == ";") {
+					temp_split.push_back(rule_space + type + ' ' + name + '(' + args + "); }\n");
+				}
+				else {
+					it++;
+					go_end(it, body, "}");
+					temp_split.push_back(rule_space + type + ' ' + name + '(' + args + ')' + "{ " + body + " }" + "}\n");
+					more = true;
+				}
+			}
+			else if (is_def(i)) {
+				list<Def> same_n, tsame_n;
+				list<str> args;
+				for (const auto& d : defs) if (d.name == i) same_n.push_back(d);
+				it++;
+				for (const auto& s : same_n) if (s.bracket.begin == *it) tsame_n.push_back(s);
+				same_n = tsame_n;
+				tsame_n.clear();
+				const auto& bracket = same_n.back().bracket;
+				it++;
+				int bc = 0, cc = 0, sc = 0, tc = 0;
+				str t;
+				uint arg_count = 0;
+				list<str> seps;
+				while (!(bc == 0 and cc == 0 and sc == 0 and tc == 0 and *it == bracket.end)) {
+					if		(*it == "(") bc++;
+					else if (*it == ")") bc--;
+					else if (*it == "{") cc++;
+					else if (*it == "}") cc--;
+					else if (*it == "[") sc++;
+					else if (*it == "]") sc--;
+					else if (*it == "<") tc++;
+					else if (*it == ">") tc--;
+					if (bc == 0 and cc == 0 and sc == 0 and tc == 0 and *it != "," and *it != ":" and *it != ";") {
+						arg_count++;
+						t += *it;
+						if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or it->type != word::op and (it + 1)->type != word::op or it->type == word::keyw or it->type == word::token) t += ' ';
+					}
+					else if (*it == "," or *it == ":" or *it == ";") {
+						seps.push_back(*it);
+						args.push_back(t);
+						t.clear();
+					}
+					it++;
+				}
+				if (not t.empty()) args.push_back(t);
+				for (const auto& s : same_n) if (s.args.size() == arg_count) tsame_n.push_back(s);
+				same_n = tsame_n;
+				tsame_n.clear();
+				if (same_n.empty())
+					cerr << "oops.. cannot find correct def.";
+				for (const auto& s : same_n) if (s.seps == seps) tsame_n.push_back(s);
+				same_n = tsame_n;
+				tsame_n.clear();
+				if (same_n.empty() or same_n.size() != 1)
+					cerr << "oops.. cannot find correct def.";
+				else {
+					const auto& def = same_n.back();
+					struct arg_t : str { using str::basic_string; arg_t() = default; arg_t(const arg_t&) = default; arg_t(const str& s) : str(s) { }; str value; };
+					list<arg_t> f_args;
+					auto arg_it = args.begin();
+					arg_t t_arg;
+					for (const auto& i : def.args) {
+						t_arg = i;
+						t_arg.value = *arg_it;
+						arg_it++;
+						f_args.push_back(t_arg);
+					}
+					list<Word> code;
+					for (const auto& i : def.val) {
+						if (i.type != word::op and is_in(i, f_args)) {
+							auto t = i;
+							t = find(f_args.begin(), f_args.end(), i)->value;
+							temp_split.push_back(t);
+						}
+						else {
+							temp_split.push_back(i);
+						}
+					}
+				}
+			}
 			else if (is_in(i, user_ops)) {
 				str op, var;
 				Word v;
@@ -251,7 +400,7 @@ public:
 			}
 			else
 				temp_split.push_back(i);
-		}
+		} 
 		split = temp_split;
 		temp_split.clear();
 		auto& ac = afterCode;
