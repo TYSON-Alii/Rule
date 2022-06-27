@@ -8,7 +8,7 @@ features;
 - [ ] #wdefine (weak define)
 - [x] \` \` string literal
 - [x] defs
-- [ ] #rep, #repn, #endrep
+- [x] $rep, $rep[beg:end]
 - [ ] safe macros
 - [ ] local macros
 - [x] removing parent bracket requiment
@@ -18,7 +18,7 @@ features;
 - [ ] typespace
 - [ ] : and . namespace operators (std:cout or std.cout)
 - [x] nested functions
-- [ ] #try, #catch, #endtry
+- [ ] $try, $catch, $endtry
 - [ ] function, variable aliasing
 ```cpp
 const str& falanke = R"(
@@ -62,10 +62,10 @@ auto main() -> int {
 			cout << `falanke filanke\n`;
 		}
 		fn func() {
-			// pass
+			$rep 3 "__n__ wow";
 		}
 	}
-	func(31);
+	$rep[31:30] func(__n__);
 	return 0;
 }
 int operator filan(int v) {
@@ -137,6 +137,10 @@ auto main()->int{
                         }
                         struct {
                                 auto operator()(){
+                                        "0 wow";
+                                        "1 wow";
+                                        "2 wow";
+                                        "3 wow";
                                 }
                         }
                         func;
@@ -144,6 +148,7 @@ auto main()->int{
         }
         func;
         func(31);
+        func(30);
         return 0;
 }
 namespace __cxx_rule{
