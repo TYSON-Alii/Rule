@@ -35,7 +35,7 @@ int operator filan(int v); // declaration
 inline auto operator echo(auto v) { return cout << v << '\n'; }
 
 #redefine M_PI 3.14f
-$macro math.pi 4 // also math::pi and mat->pi accepted
+$macro math.pi 4 // also math::pi and math->pi accepted
 $macro math.pi 3.14f
 
 // brackets ( ), [ ], < >
