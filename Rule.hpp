@@ -23,20 +23,10 @@ public:
 		"<=>", "<<=", ">>=", "...", "==="
 	};
 	struct Macro {
-		str name, value;
+		str name;
+		list<Word> value;
 	};
-	list<Macro> macros = {
-		{{ "and" },{ "&&" }},
-		{{ "or" },{ "||" }},
-		{{ "bitand" },{ "&" }},
-		{{ "bitor" },{ "|" }},
-		{{ "not" },{ "!" }},
-		{{ "xor" },{ "^" }},
-		{{ "and_eq" },{ "&=" }},
-		{{ "or_eq" },{ "|=" }},
-		{{ "not_eq" },{ "!=" }},
-		{{ "xor_eq" },{ "^=" }}
-	};
+	list<Macro> macros;
 	struct Def {
 		str name;
 		struct {
@@ -66,12 +56,16 @@ public:
 	};
 	Rule() = default;
 	Rule(const str& _code) : code(_code) { parse(); };
+	Rule(const str& _code, Rule parent) : code(_code) {
+		macros.insert(macros.end(), parent.macros.begin(), parent.macros.end());
+		defs.insert(defs.end(), parent.defs.begin(), parent.defs.end());
+		parse();
+	};
 	str parse() {
 		const auto& is_in = [](auto v, auto l) { for (const auto& i : l) if (v == i) return true; return false; };
 		const auto& is_macro = [&](const auto& v) { for (const auto& i : macros) if (v == i.name) return true; return false; };
 		const auto& is_def = [&](const auto& v) { for (const auto& i : defs) if (v == i.name) return true; return false; };
 		const auto& is_digit = [](char c) { return c > char(47) and c < char(58); };
-		const auto& add_include = [&](const str& s) { if (!is_in(s, rule_includes)) rule_includes.push_back(s); };
 		const auto& go_end = [&](auto& it, auto& val, const auto& ch) {
 			int bc = 0, cc = 0, sc = 0, tc = 0;
 			while (!(bc == 0 and cc == 0 and sc == 0 and tc == 0 and *it == ch)) {
@@ -107,47 +101,40 @@ public:
 			auto& i = *it;
 			const auto& it1 = it + 1;
 			if (i.starts_with("//") or i.starts_with("/*")) continue;
-			else if (i.starts_with("$macro ")) {
-				str t(i.begin() + 6, i.end());
-				Macro macro;
-				uint pos = t.find_first_of(' ');
-				if (pos != str::npos) {
-					macro.name = str(t.begin(), t.begin() + pos);
-					macro.value = str(t.begin() + pos + 1, t.end());
-				}
-				else {
-					macro.name = t;
-				}
-				macros.push_back(macro);
-			}
-			else if (i.starts_with("$def ")) {
-				str t = str(i.begin() + 5, i.end());
-				Def def;
-				auto s = split_code(t);
-				auto itt = s.begin();
-				def.name = *itt;
-				itt++;
-				def.bracket.begin = *itt;
-				if (*itt == "(")
-					def.bracket.end = ")";
-				else if (*itt == "[")
-					def.bracket.end = "]";
-				else if (*itt == "<")
-					def.bracket.end = ">";
-				itt++;
-				bool c = false;
-				for (; *itt != def.bracket.end; itt++) {
-					if (not c)
-						def.args.push_back(*itt);
+			else if (it1 != split.end()) {
+				auto& i1 = *it1;
+				if (i == "::" or i == "->" or i == ".") {
+					if (it != split.begin() and (it - 1)->type == word::no)// not ((it - 1)->type == word::token or (it - 1)->type == word::keyw or (it - 1)->type == word::op))
+						temp_split.back() += i + i1;
 					else
-						def.seps.push_back(*itt);
-					c = !c;
+						temp_split.push_back(i + i1);
+					it++;
 				}
-				it++;
-				t.clear();
-				go_end(it,t,"}");
-				def.val = split_code(t);
-				defs.push_back(def);
+				else if (i == "operator" and i1.type == word::op) {
+					temp_split.push_back(i + i1);
+					it++;
+				}
+				else
+					temp_split.push_back(i);
+			}
+			else
+				temp_split.push_back(i);
+		}
+		split = temp_split;
+		temp_split.clear();
+		// 2nd iterate
+		for (auto it = split.begin(); it != split.end(); it++) {
+			const auto& i = *it;
+			const auto& it1 = it + 1;
+			if (i.starts_with("#redefine ")) {
+				const str& s = str(i.begin() + 10, i.end() - 1);
+				const auto& f = std::find_if(s.begin(), s.end(), [](auto ch) { return std::isspace(ch); });
+				const str& m = str(s.begin(), f);
+				const str& val = Rule(str(f, s.end())).afterCode;
+				temp_split.push_back("#ifdef "s + m);
+				temp_split.push_back("#undef "s + m);
+				temp_split.push_back("#endif"s);
+				temp_split.push_back("#define "s + m + ' ' + val);
 			}
 			else if (i.starts_with("$rep ")) {
 				str t = str(i.begin() + 5, i.end()), rep_str;
@@ -171,7 +158,7 @@ public:
 						c.replace(start_pos, 5, i_str);
 						start_pos += i_str.length();
 					}
-					auto s = split_code(c);
+					auto s = Rule(c, *this).split;
 					temp_split.insert(temp_split.end(), s.begin(), s.end());
 				}
 			}
@@ -207,178 +194,74 @@ public:
 							c.replace(start_pos, 5, i_str);
 							start_pos += i_str.length();
 						}
-						auto s = split_code(c);
+						auto s = Rule(c, *this).split;
 						temp_split.insert(temp_split.end(), s.begin(), s.end());
 						if (end == 0 and i == 0) break;
 					}
 				}
 			}
-			else if (is_macro(i)) {
-				Macro& macro = *find_if(macros.begin(), macros.end(), [&](const auto& m) { return m.name == i; });
-				if (not macro.value.empty()) {
-					auto t = split_code(macro.value);
-					temp_split.insert(temp_split.end(), t.begin(), t.end());
+			else if (i.starts_with("$macro ")) {
+				str t(i.begin() + 7, i.end());
+				Macro macro;
+				uint pos = t.find_first_of(' ');
+				if (pos != str::npos) {
+					macro.name = str(t.begin(), t.begin() + pos);
+					macro.value = Rule(str(t.begin() + pos + 1, t.end()), *this).split;
 				}
-			}
-			else if (i.starts_with("#redefine ")) {
-				const str& s = str(i.begin() + 10, i.end()-1);
-				const auto& f = std::find_if(s.begin(), s.end(), [](auto ch) { return std::isspace(ch); });
-				const str& m = str(s.begin(), f);
-				const str& val = str(f, s.end());
-				temp_split.push_back("#ifdef "s + m);
-				temp_split.push_back("#undef "s + m);
-				temp_split.push_back("#endif"s);
-				temp_split.push_back("#define "s + s);
+				else {
+					macro.name = t;
+				}
+				auto f = find_if(macros.begin(), macros.end(), [&](const auto& i) { return i.name == macro.name; });
+				if (f == macros.end())
+					macros.push_back(macro);
+				else
+					*f = macro;
 			}
 			else if (i.starts_with("$operator ")) {
-				const auto& s = str(i.begin() + 10, i.end());
-				user_ops.push_back(s);
+				user_ops.push_back(str(i.begin() + 10, i.end()));
 			}
-			else if (it1 != split.end()) {
-				auto& i1 = *it1;
-				if (i == "::") {
-					if (it != split.begin() and !(is_in(*(it - 1), tokens) or is_in(*(it - 1), keywords)))
-						temp_split.back() += i + i1;
+			else if (i.starts_with("$def ")) {
+				str t = str(i.begin() + 5, i.end());
+				Def def;
+				auto s = split_code(t);
+				auto itt = s.begin();
+				def.name = *itt;
+				itt++;
+				def.bracket.begin = *itt;
+				if (*itt == "(")
+					def.bracket.end = ")";
+				else if (*itt == "[")
+					def.bracket.end = "]";
+				else if (*itt == "<")
+					def.bracket.end = ">";
+				itt++;
+				bool c = false;
+				for (; *itt != def.bracket.end; itt++) {
+					if (not c)
+						def.args.push_back(*itt);
 					else
-						temp_split.push_back(i + i1);
-					it++;
+						def.seps.push_back(*itt);
+					c = !c;
 				}
-				else if (i == ".") {
-					if (it != split.begin() and !(is_in(*(it - 1), tokens) or is_in(*(it - 1), keywords)))
-						temp_split.back() += i + i1;
-					else
-						temp_split.push_back(i + i1);
-					it++;
-				}
-				else if (i == "operator" and is_in(i1, ops)) {
-					temp_split.push_back(i + i1);
-					it++;
-				}
-				else
-					temp_split.push_back(i);
+				it++;
+				t.clear();
+				go_end(it,t,"}");
+				def.val = Rule(t, *this).split;
+				defs.push_back(def);
 			}
 			else
 				temp_split.push_back(i);
-		};
+		}
 		split = temp_split;
 		temp_split.clear();
-		// 2nd iterate
+		// 3th iterate
 		for (auto it = split.begin(); it != split.end(); it++) {
 			const auto& i = *it;
 			const auto& it1 = it + 1;
-			if (i.back() == '`') {
-				add_include("string");
-				rule_to_string_funcs.add = true;
-				temp_split.push_back("R\"__cxx_rule("s + str(i.begin() + 1, i.end() - 1) + ")__cxx_rule\"");
-			}
-			else if (i.starts_with("f\"")) {
-				add_include("string");
-				rule_to_string_funcs.add = true;
-				temp_split.push_back(parse_fliteral(str(i.begin() + 2, i.end() - 1)));
-				more = true;
-			}
-			else if (is_in(i, rbracket)) {
-				temp_split.push_back(i);
-				if (*(it + 1) == "(") {
-					auto cit = it+2;
-					str c;
-					go_end(cit, c, ")");
-					if (*(cit + 1) == "{")
-						continue;
-				}
-				Word t;
-				t = "(";
-				t.type = word::op;
-				temp_split.push_back(t);
-				it++;
-				int bc = 0, cc = 0, sc = 0;
-				while (!(bc == 0 and cc == 0 and sc == 0 and *it == "{")) {
-					if (*it == "(")
-						bc++;
-					else if (*it == ")")
-						bc--;
-					else if (*it == "{")
-						cc++;
-					else if (*it == "}")
-						cc--;
-					else if (*it == "[")
-						sc++;
-					else if (*it == "]")
-						sc--;
-					temp_split.push_back(*it);
-					it++;
-				};
-				t.type = word::op;
-				t = ")";
-				temp_split.push_back(")");
-				t = "{";
-				temp_split.push_back("{");
-			}
-			else if (i == "fn") {
-				it++;
-				const str& fn_name = *it;
-				it++;
-				it++;
-				str args, body, type = "auto";
-				go_end(it, args, ")");
-				it++;
-				if (*it == "->") it++, type = *it, it++;
-				it++;
-				go_end(it, body, "}");
-				body += '}';
-				temp_split.push_back("struct { "s + type + " operator()(" + args + ')' + '{' + body + '}' + fn_name + ';');
-				more = true;
-			}
-			else if (i == "..") {
-				temp_split.pop_back();
-				if ((it-1)->type == word::number and (it+1)->type == word::number) {
-					const auto& beg = stoi(*(it - 1));
-					const auto& end = stoi(*(it + 1));
-					if (beg < end) {
-						const auto& e = end - 1;
-						for (int i = beg; i < e; i++) temp_split.push_back(to_string(i)), temp_split.push_back(","s);
-						temp_split.push_back(to_string(e));
-					}
-					else if (beg > end) {
-						const auto& e = end + 1;
-						for (int i = beg; i > e; i--) temp_split.push_back(to_string(i)), temp_split.push_back(","s);
-						temp_split.push_back(to_string(e));
-					}
-					else
-						temp_split.push_back(to_string(beg));
-				}
-				else {
-					rule_dotdot_op.add = true;
-					add_include("vector");
-					temp_split.push_back("__cxx_rule::__dotdot_op("s + *(it - 1) + ',' + *(it + 1) + ')');
-				};
-				it++;
-			}
-			else if (i == "operator" and is_in(*it1, user_ops)) {
-				str type, args, body;
-				temp_split.pop_back();
-				it--;
-				const auto t = it;
-				if (it != split.begin()) {
-					it--;
-					while (it != split.begin() and !temp_split.empty() and is_in(*it, tokens)) temp_split.pop_back(), it--;
-					it++;
-					while (it != t) type += *it + ' ', it++;
-				};
-				type += *t;
-				it+=2;
-				const str& name = "__operator_"s + *it;
-				it+=2;
-				go_end(it, args, ")");
-				it++;
-				if (*it == ";") {
-					temp_split.push_back(rule_space + type + ' ' + name + '(' + args + "); }\n");
-				}
-				else {
-					it++;
-					go_end(it, body, "}");
-					temp_split.push_back(rule_space + type + ' ' + name + '(' + args + ')' + "{ " + body + " }" + "}\n");
-					more = true;
+			if (is_macro(i)) {
+				Macro& macro = *find_if(macros.begin(), macros.end(), [&](const auto& m) { return m.name == i; });
+				if (not macro.value.empty()) {
+					temp_split.insert(temp_split.end(), macro.value.begin(), macro.value.end());
 				}
 			}
 			else if (is_def(i)) {
@@ -439,7 +322,6 @@ public:
 						arg_it++;
 						f_args.push_back(t_arg);
 					}
-					list<Word> code;
 					for (const auto& i : def.val) {
 						if (i.type != word::op and is_in(i, f_args)) {
 							auto t = i;
@@ -450,6 +332,120 @@ public:
 							temp_split.push_back(i);
 						}
 					}
+				}
+			}
+			else
+				temp_split.push_back(i);
+		}
+		split = temp_split;
+		temp_split.clear();
+		// 4th iterate
+		for (auto it = split.begin(); it != split.end(); it++) {
+			const auto& i = *it;
+			const auto& it1 = it + 1;
+			if (i.front() == '`') {
+				temp_split.push_back("R\"__cxx_rule("s + str(i.begin() + 1, i.end() - 1) + ")__cxx_rule\"");
+			}
+			else if (i.starts_with("f\"")) {
+				temp_split.push_back(parse_fliteral(str(i.begin() + 2, i.end() - 1)));
+			}
+			else if (is_in(i, rbracket)) {
+				temp_split.push_back(i);
+				if (*(it + 1) == "(") {
+					auto cit = it+2;
+					str c;
+					go_end(cit, c, ")");
+					if (*(cit + 1) == "{")
+						continue;
+				}
+				str t = "(";
+				it++;
+				int bc = 0, cc = 0, sc = 0;
+				while (!(bc == 0 and cc == 0 and sc == 0 and *it == "{")) {
+					if (*it == "(")
+						bc++;
+					else if (*it == ")")
+						bc--;
+					else if (*it == "{")
+						cc++;
+					else if (*it == "}")
+						cc--;
+					else if (*it == "[")
+						sc++;
+					else if (*it == "]")
+						sc--;
+					t += *it;
+					if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or it->type != word::op and (it + 1)->type != word::op or it->type == word::keyw or it->type == word::token) t += ' ';
+					it++;
+				}
+				t += "){";
+				const auto& splt = Rule(t, *this).split;
+				temp_split.insert(temp_split.end(), splt.begin(), splt.end());
+			}
+			else if (i == "fn") {
+				it++;
+				const str& fn_name = *it;
+				it++;
+				it++;
+				str args, body, type = "auto";
+				go_end(it, args, ")");
+				it++;
+				if (*it == "->") it++, type = *it, it++;
+				it++;
+				go_end(it, body, "}");
+				body += '}';
+				const auto& splt = Rule("struct { "s + type + " operator()(" + args + ')' + '{' + body + '}' + fn_name + ';', *this).split;
+				temp_split.insert(temp_split.end(), splt.begin(), splt.end());
+			}
+			else if (i == "..") {
+				temp_split.pop_back();
+				if ((it-1)->type == word::number and (it+1)->type == word::number) {
+					const auto& beg = stoi(*(it - 1));
+					const auto& end = stoi(*(it + 1));
+					if (beg < end) {
+						const auto& e = end - 1;
+						for (int i = beg; i < e; i++) temp_split.push_back(to_string(i)), temp_split.push_back(","s);
+						temp_split.push_back(to_string(e));
+					}
+					else if (beg > end) {
+						const auto& e = end + 1;
+						for (int i = beg; i > e; i--) temp_split.push_back(to_string(i)), temp_split.push_back(","s);
+						temp_split.push_back(to_string(e));
+					}
+					else
+						temp_split.push_back(to_string(beg));
+				}
+				else {
+					temp_split.push_back("__cxx_rule::__dotdot_op("s + *(it - 1) + ',' + *(it + 1) + ')');
+				};
+				it++;
+			}
+			else if (i == "operator" and is_in(*it1, user_ops)) {
+				str type, args, body;
+				temp_split.pop_back();
+				it--;
+				const auto t = it;
+				if (it != split.begin()) {
+					it--;
+					while (it != split.begin() and !temp_split.empty() and is_in(*it, tokens)) temp_split.pop_back(), it--;
+					it++;
+					while (it != t) type += *it + ' ', it++;
+				};
+				type += *t;
+				it+=2;
+				const str& name = "__operator_"s + *it;
+				it+=2;
+				go_end(it, args, ")");
+				it++;
+				if (*it == ";") {
+					const auto& splt = Rule(rule_space + type + ' ' + name + '(' + args + "); }\n", *this).split;
+					temp_split.insert(temp_split.end(), splt.begin(), splt.end());
+				}
+				else {
+					it++;
+					go_end(it, body, "}");
+					const auto& splt = Rule(rule_space + type + ' ' + name + '(' + args + ')' + "{ " + body + " }" + "}\n", *this).split;
+					temp_split.insert(temp_split.end(), splt.begin(), splt.end());
 				}
 			}
 			else if (is_in(i, user_ops)) {
@@ -476,72 +472,40 @@ public:
 			}
 			else
 				temp_split.push_back(i);
-		} 
+		}
 		split = temp_split;
 		temp_split.clear();
-		auto& ac = afterCode;
-		ac.clear();
-		if (!more) {
-			for (const auto& i : rule_includes)
-				ac += "#include <"s + i + ">\n";
-			if (rule_to_string_funcs.add)
-				ac += rule_to_string_funcs.code;
-			ac += rule_space + '\n';
-			if (rule_dotdot_op.add)
-				ac += rule_dotdot_op.code;
-			ac += "};\n\n";
-		}
+		afterCode.clear();
 		uint tab = 0;
 		for (auto it = split.begin(); it != split.end(); it++) {
-			ac += *it;
-			if (it->starts_with("#"))
-				ac += '\n';
-			else if (it + 1 != split.end())
-				if (it->ends_with(";") or it->ends_with("{") or it->ends_with("}") or it->ends_with(";")) {
+			afterCode += *it;
+			if (it->front() == '#')
+				afterCode += '\n';
+			else if (it + 1 != split.end()) {
+				if (it->back() == ';' or it->back() == '{' or it->back() == '}') {
 					if (*it == "{") tab++;
 					else if (*it == "}") {
-						if (*(ac.end() - 2) == '\t')
-							ac.erase(ac.end() - 2);
-						tab--;
+						if (*(afterCode.end() - 2) == '\t')
+							afterCode.erase(afterCode.end() - 2);
+						if (tab != 0) tab--;
 					};
-					ac += '\n';
+					afterCode += '\n';
 					for (uint i = 0; i < tab; i++)
-						ac += '\t';
+						afterCode += '\t';
 				}
-				else if (!ac.ends_with("\n"))
+				else if (!afterCode.ends_with("\n"))
 					if (*(it + 1) == "}" or it->type != word::op and (it + 1)->type != word::op or it->type == word::keyw or it->type == word::token)
-						ac += ' ';
-		}
-		if (more) {
-			more = false;
-			code = afterCode;
-			parse();
+						afterCode += ' ';
+			}
 		}
 		return afterCode;
 	};
-	bool more = false;
 	list<Word> split;
 	str code, afterCode;
 private:
-	list<str> user_ops, rule_includes;
+	uint meta_counter = 0;
+	list<str> user_ops;
 	const str& rule_space = "namespace __cxx_rule { ";
-	struct fn_t {
-		bool add = false;
-		const str code;
-	};
-	fn_t rule_dotdot_op { false, R"(auto __dotdot_op(auto beg, auto end) {
-	std::vector<decltype(beg)> list;
-	if (beg < end) for (auto i = beg; i < end; i++) list.push_back(i);
-	else if (beg > end) for (auto i = beg; i > end; i--) list.push_back(i);
-	else list.push_back(beg);
-	return list;
-};
-)" };
-	fn_t rule_to_string_funcs = { false, R"(namespace std {
-	inline string to_string(string s) { return s; };
-	inline string to_string(string* s) { return *s; };
-};
-)" };
 	list<Word> split_code(const str& code) {
 		const auto& is_in = [](auto v, auto l)  { for (const auto& i : l) if (v == i) return true; return false; };
 		const auto& is_digit = [](char c)  { return c > char(47) and c < char(58); };
@@ -589,6 +553,7 @@ private:
 							temp_str += l.beg;
 						int not_c = 0;
 						while (true) {
+							if (it == code.end()) { it--; goto cks; }
 							const str& s = str(it, it + end_len);
 							if (*it == l.not_in.beg)
 								not_c++;
@@ -614,6 +579,7 @@ private:
 								temp_str += *it, it++;
 						};
 						it += end_len - 1;
+					cks:;
 						temp_str.type = word::lit;
 						if (l.add_end)
 							temp_str += l.end;
@@ -689,18 +655,9 @@ private:
 					temp += *it;
 					it++;
 				};
-				const auto& splt = split_code(temp);
-				if (!splt.empty()) {
-					s += conv_s;
-					temp.clear();
-					for (auto it = splt.begin(); it != splt.end(); it++) {
-						temp += *it;
-						if (it + 1 != splt.end())
-							if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or it->type != word::op and (it + 1)->type != word::op or it->type == word::keyw)
-								temp += ' ';
-					};
-					s += temp + add_s;
-				};
+				s += conv_s;
+				s += Rule(temp, *this).afterCode + add_s;
+				temp.clear();
 			}
 			else {
 				s += i;
