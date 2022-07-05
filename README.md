@@ -5,6 +5,7 @@ features;
 - [ ] auto specifier after const keyword
 - [x] #redefine
 - [ ] #indefine
+- [ ] @ operator
 - [ ] #wdefine (weak define)
 - [x] \` \` string literal
 - [x] defs
@@ -20,24 +21,27 @@ features;
 - [x] nested functions
 - [ ] $try, $catch, $endtry
 - [ ] function, variable aliasing
+
 ```cpp
 const str& falanke = R"(
 $operator falan
 $operator filan
 $operator echo
 
-void operator falan(T v) {
+void operator falan(auto v) {
 	cout << "falanke filanke: " << v << '\n';
 }
 int operator filan(int v); // declaration
 inline auto operator echo(auto v) { return cout << v << '\n'; }
 
 #redefine M_PI 3.14f
+$macro math.pi 4 // also math::pi and mat->pi accepted
+$macro math.pi 3.14f
 
 // brackets ( ), [ ], < >
 // separators ',', ':', ';'
 $def log[type:message] {
-	std::cerr << enum_name(type) << ':' << message;
+	std::cerr << f"{enum_name(type)}:{message}" << '\n';
 }
 $def log<mes> {
 	throw std::runtime_error(mes)
@@ -48,7 +52,7 @@ auto main() -> int {
 	str hello = "Hello";
 	enum class log_type { info, error, warning };
 	log[log_type::error:"oops.."];
-	std::cout << f"{hello+f"wow {31}."}, World." << '\n';
+	std::cout << f"{hello+f"wow {math.pi}."}, World." << '\n';
 	log<"falan filan kardwim">;
 	str falanke = `C:\wow\amazing`;
 	int begin = 10, end = 21;
@@ -82,24 +86,8 @@ auto main() -> int {
 
 ```cpp
 // OUTPUT:
-#include <string>
-#include <vector>
-namespace std {
-        inline string to_string(string s) { return s; };
-        inline string to_string(string* s) { return *s; };
-};
-namespace __cxx_rule {
-auto __dotdot_op(auto beg, auto end) {
-        std::vector<decltype(beg)> list;
-        if (beg < end) for (auto i = beg; i < end; i++) list.push_back(i);
-        else if (beg > end) for (auto i = beg; i > end; i--) list.push_back(i);
-        else list.push_back(beg);
-        return list;
-};
-};
-
 namespace __cxx_rule{
-        void __operator_falan(T v){
+        void __operator_falan(auto v){
                 cout<<"falanke filanke: "<<v<<'\n';
         }
 }
@@ -120,9 +108,9 @@ auto main()->int{
         enum class log_type{
                 info,error,warning }
         ;
-        std::cerr<<enum_name(log_type::error)<<':'<<"oops..";
+        std::cerr<<(std::to_string(enum_name(type)) + std::string(":") + std::to_string(message))<<'\n';
         ;
-        std::cout<<(std::to_string(hello+(std::string("wow ")+std::to_string(31)+std::string(".")))+std::string(", World."))<<'\n';
+        std::cout<<(std::to_string(hello+(std::string("wow ") + std::to_string(3.14f) + std::string("."))) + std::string(", World."))<<'\n';
         throw std::runtime_error("falan filan kardwim");
         str falanke=R"__cxx_rule(C:\wow\amazing)__cxx_rule";
         int begin=10,end=21;
@@ -132,7 +120,7 @@ auto main()->int{
         }
         struct {
                 auto operator()(int wow){
-                        if (true||false){
+                        if (true or false){
                                 cout<<R"__cxx_rule(falanke filanke\n)__cxx_rule";
                         }
                         struct {
