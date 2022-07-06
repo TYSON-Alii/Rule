@@ -35,8 +35,9 @@ int operator filan(int v); // declaration
 inline auto operator echo(auto v) { return cout << v << '\n'; }
 
 #redefine M_PI 3.14f
-$macro math.pi 4 // also math::pi and math->pi accepted
-$macro math.pi 3.14f
+$macro math.pi 4 // also math::pi and mat->pi accepted
+$macro math.pi 3.14
+$macro 3 "its cursed number."
 
 // brackets ( ), [ ], < >
 // separators ',', ':', ';'
@@ -53,7 +54,7 @@ auto main() -> int {
 	enum class log_type { info, error, warning };
 	log[log_type::error:"oops.."];
 	std::cout << f"{hello+f"wow {math.pi}."}, World." << '\n';
-	log<"falan filan kardwim">;
+	log<3>;
 	str falanke = `C:\wow\amazing`;
 	int begin = 10, end = 21;
 	for (auto&& i : beg..end) falan filan i;
@@ -69,7 +70,7 @@ auto main() -> int {
 			$rep 3 "__n__ wow";
 		}
 	}
-	$rep[31:30] func(__n__);
+	$rep[31:30+math.pi] func(__n__);
 	return 0;
 }
 int operator filan(int v) {
@@ -86,18 +87,12 @@ auto main() -> int {
 
 ```cpp
 // OUTPUT:
-namespace __cxx_rule{
-        void __operator_falan(auto v){
-                cout<<"falanke filanke: "<<v<<'\n';
-        }
+void operator falan(auto v){
+        cout<<"falanke filanke: "<<v<<'\n';
 }
-namespace __cxx_rule{
-        int __operator_filan(int v);
-}
-namespace __cxx_rule{
-        inline auto __operator_echo(auto v){
-                return cout<<v<<'\n';
-        }
+int operator filan(int v);
+inline auto operator echo(auto v){
+        return cout<<v<<'\n';
 }
 #ifdef M_PI
 #undef M_PI
@@ -110,13 +105,13 @@ auto main()->int{
         ;
         std::cerr<<(std::to_string(enum_name(type)) + std::string(":") + std::to_string(message))<<'\n';
         ;
-        std::cout<<(std::to_string(hello+(std::string("wow ") + std::to_string(3.14f) + std::string("."))) + std::string(", World."))<<'\n';
-        throw std::runtime_error("falan filan kardwim");
+        std::cout<<(std::to_string(hello+(std::string("wow ") + std::to_string(3.14) + std::string("."))) + std::string(", World."))<<'\n';
+        throw std::runtime_error("its cursed number.");
         str falanke=R"__cxx_rule(C:\wow\amazing)__cxx_rule";
         int begin=10,end=21;
-        for (auto &&i:__cxx_rule::__dotdot_op(beg,end))__cxx_rule::__operator_falan(__cxx_rule::__operator_filan(i));
+        for (auto &&i:__cxx_rule::__dotdot_op(beg,end))falan filan i;
         if (2+2==4){
-                __cxx_rule::__operator_echo("evet.");
+                echo "evet.";
         }
         struct {
                 auto operator()(int wow){
@@ -136,13 +131,12 @@ auto main()->int{
         }
         func;
         func(31);
-        func(30);
+        func(32);
+        func(33);
         return 0;
 }
-namespace __cxx_rule{
-        int __operator_filan(int v){
-                cout<<"oyle iste: "<<v<<'\n';
-                return v+42;
-        }
+int operator filan(int v){
+        cout<<"oyle iste: "<<v<<'\n';
+        return v+42;
         }
 ```
