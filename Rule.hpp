@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <vector>
 #include <string>
+#include "tinyexpr.h"
 using namespace std;
 class Rule {
 public:
