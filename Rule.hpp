@@ -11,7 +11,14 @@ public:
 	template <typename T>
 	using list = pmr::vector<T>;
 	enum class word : byte { no, keyw, op, token, number, lit };
-	struct Word : str { using str::basic_string; Word() = default; Word(const Word&) = default; Word(const str& s) : str(s) { }; word type = word::no; };
+	struct Word : str {
+		using str::basic_string;
+		Word() = default;
+		Word(const Word&) = default;
+		Word(const str& s) : str(s) { };
+		Word(const str& s, word t) : str(s), type(t) { };
+		word type = word::no;
+	};
 	struct lit_not_in { char beg, end; };
 	struct lit_pair { lit_pair(const str& b, const str& e, const lit_not_in& l, bool bs, bool ln_p, bool a_b, bool a_e) : beg(b), end(e), not_in(l), bslash(bs), ln_problem(ln_p), add_beg(a_b), add_end(a_e) { }; str beg, end; lit_not_in not_in; bool bslash, ln_problem, add_beg, add_end; };
 	list<str> tokens {"const", "constexpr", "virtual", "static", "inline", "explicit", "friend", "volatile", "register", "short", "long", "signed", "unsigned" };
@@ -22,6 +29,14 @@ public:
 		"==", "!=", ">=", "<=", "<<", ">>", "--", "++", "&&", "||", "+=", "-=", "*=", "/=", "%=", "^=", "|=", "&=", "->", "=>", "::", "..",
 		"<=>", "<<=", ">>=", "...", "==="
 	};
+	struct OP : str {
+		using str::basic_string;
+		OP() = default;
+		OP(const OP&) = default;
+		OP(const str& s) : str(s) { };
+		bool unary = true;
+	};
+	list<OP> user_ops;
 	struct Macro {
 		str name;
 		list<Word> value;
@@ -44,6 +59,7 @@ public:
 		lit_pair("/*","*/", {'\0','\0'}, false, false, true, true),
 		lit_pair("#","\n", {'\0','\0'}, true, false, true, false),
 		lit_pair("$def","{", {'\0','\0'}, false, false, true, false),
+		lit_pair("$if"," ", {'\0','\0'}, false, false, true, false),
 		lit_pair("$","\n", {'\0','\0'}, true, false, true, false),
 		lit_pair("`","`", {'\0','\0'}, false, false, true, true),
 		lit_pair("f\"","\"", {'{','}'}, true, true, true, true),
@@ -164,14 +180,9 @@ public:
 			}
 			else if (i.starts_with("$rep[")) {
 				str counts = str(i.begin() + 5, i.begin() + i.find(']')), t = str(i.begin() + i.find(']') + 1, i.end());
-				const auto& splt_c = split_code(counts);
-				uint beg, end;
-				if (splt_c.size() == 3 and splt_c[1] == ":") {
-					beg = stoul(splt_c.front());
-					end = stoul(splt_c.back());
-				}
-				else
-					cerr << "errorke..";
+				const str& beg_str = Rule(str(counts.begin(), counts.begin() + counts.find_first_of(':')), *this).afterCode;
+				const str& end_str = Rule(str(counts.begin() + counts.find_first_of(':') + 1, counts.end()), *this).afterCode;
+				uint beg = (uint)te_interp(beg_str.c_str(), 0), end = (uint)te_interp(end_str.c_str(), 0);
 				if (beg < end) {
 					for (uint i = beg; i <= end; i++) {
 						const str& i_str = to_string(i);
@@ -218,7 +229,7 @@ public:
 					*f = macro;
 			}
 			else if (i.starts_with("$operator ")) {
-				user_ops.push_back(str(i.begin() + 10, i.end()));
+				user_ops.push_back(OP { str(i.begin() + 10, i.end()), true });
 			}
 			else if (i.starts_with("$def ")) {
 				str t = str(i.begin() + 5, i.end());
@@ -322,11 +333,33 @@ public:
 						arg_it++;
 						f_args.push_back(t_arg);
 					}
-					for (const auto& i : def.val) {
+					for (auto it = def.val.begin(); it != def.val.end(); it++) {
+						const auto& i = *it;
 						if (i.type != word::op and is_in(i, f_args)) {
 							auto t = i;
-							t = find(f_args.begin(), f_args.end(), i)->value;
+							t = Rule(find(f_args.begin(), f_args.end(), i)->value, *this).afterCode;
 							temp_split.push_back(t);
+						}
+						else if (i == "__def__") {
+							temp_split.push_back(def.name);
+						}
+						else if (i == "__bracket_beg__") {
+							temp_split.push_back(def.bracket.begin);
+						}
+						else if (i == "__bracket_end__") {
+							temp_split.push_back(def.bracket.end);
+						}
+						else if (i == "__arg_count__") {
+							temp_split.push_back(Word(to_string(def.args.size()), word::number));
+						}
+						else if (i == "__arg_at") {
+							it++;
+							str at;
+							if (*it == "(")
+								it++, go_end(it, at, ")");
+							else
+								at = *it;
+							temp_split.push_back(def.args[(uint)te_interp(at.c_str(), 0)]);
 						}
 						else {
 							temp_split.push_back(i);
@@ -352,7 +385,7 @@ public:
 			else if (is_in(i, rbracket)) {
 				temp_split.push_back(i);
 				if (*(it + 1) == "(") {
-					auto cit = it+2;
+					auto cit = it + 2;
 					str c;
 					go_end(cit, c, ")");
 					if (*(cit + 1) == "{")
@@ -399,7 +432,7 @@ public:
 			}
 			else if (i == "..") {
 				temp_split.pop_back();
-				if ((it-1)->type == word::number and (it+1)->type == word::number) {
+				if ((it - 1)->type == word::number and (it + 1)->type == word::number) {
 					const auto& beg = stoi(*(it - 1));
 					const auto& end = stoi(*(it + 1));
 					if (beg < end) {
@@ -432,9 +465,9 @@ public:
 					while (it != t) type += *it + ' ', it++;
 				};
 				type += *t;
-				it+=2;
+				it += 2;
 				const str& name = "__operator_"s + *it;
-				it+=2;
+				it += 2;
 				go_end(it, args, ")");
 				it++;
 				if (*it == ";") {
@@ -449,26 +482,29 @@ public:
 				}
 			}
 			else if (is_in(i, user_ops)) {
-				str op, var;
-				Word v;
-				list<str> vl;
-				uint op_c = 1;
-				op = i;
-				it++;
-				var = *it;
-				vl.push_back("__cxx_rule::__operator_"s + op);
-				while (is_in(var, user_ops)) {
-					op_c++;
-					op = var;
+				const auto& o = *find(user_ops.begin(), user_ops.end(), i);
+				if (o.unary) {
+					str op, var;
+					Word v;
+					list<str> vl;
+					uint op_c = 1;
+					op = i;
 					it++;
 					var = *it;
 					vl.push_back("__cxx_rule::__operator_"s + op);
+					while (is_in(var, user_ops)) {
+						op_c++;
+						op = var;
+						it++;
+						var = *it;
+						vl.push_back("__cxx_rule::__operator_"s + op);
+					}
+					for (const str& s : vl) v += s + '(';
+					v += var;
+					v.type = word::no;
+					for (uint i = 0; i < op_c; i++) v += ')';
+					temp_split.push_back(v);
 				}
-				for (const str& s : vl) v += s + '(';
-				v += var;
-				v.type = word::no;
-				for (uint i = 0; i < op_c; i++) v += ')';
-				temp_split.push_back(v);
 			}
 			else
 				temp_split.push_back(i);
@@ -504,7 +540,6 @@ public:
 	str code, afterCode;
 private:
 	uint meta_counter = 0;
-	list<str> user_ops;
 	const str& rule_space = "namespace __cxx_rule { ";
 	list<Word> split_code(const str& code) {
 		const auto& is_in = [](auto v, auto l)  { for (const auto& i : l) if (v == i) return true; return false; };
