@@ -1,27 +1,170 @@
 ### Rule [C++ Parser, Re-Writer]
 features;
-- [x] f-string literal
-- [x] .. operator
+- [x] [f-string literal](https://github.com/TYSON-Alii/Rule/edit/main/README.md#f-string-literal-string-formatting)
+- [x] [.. operator](https://github.com/TYSON-Alii/Rule/edit/main/README.md#-operator-range-operator)
 - [ ] auto specifier after const keyword
-- [x] #redefine
+- [x] [#redefine](https://github.com/TYSON-Alii/Rule/edit/main/README.md#redefine-safer-macro-definition)
 - [ ] #indefine
 - [ ] @ operator
 - [ ] #wdefine (weak define)
-- [x] \` \` string literal
-- [x] defs
-- [x] $rep, $rep[beg:end]
-- [x] safe macros ($macro)
+- [x] [\` \` string literal](https://github.com/TYSON-Alii/Rule/edit/main/README.md#--string-literal-raw-string-literal)
+- [x] [defs](https://github.com/TYSON-Alii/Rule/edit/main/README.md#defs-safe-functional-and-overloadable-macros)
+- [x] [$rep, $rep[beg:end]](https://github.com/TYSON-Alii/Rule/edit/main/README.md#reprep-rewrites-n-times)
+- [x] [safe macros ($macro)](https://github.com/TYSON-Alii/Rule/edit/main/README.md#macro-safe-macros)
 - [ ] local macros
-- [x] removing parent bracket requiment
+- [x] [removing parent bracket requiment](https://github.com/TYSON-Alii/Rule/edit/main/README.md#no-parent-bracket-requiremnt)
 - [ ] => operator for lambda
 - [ ] infile keyword
-- [x] $operator
+- [x] [$operator](https://github.com/TYSON-Alii/Rule/edit/main/README.md#operator-create-unary-operator)
 - [ ] typespace
 - [ ] : and . namespace operators (std:cout or std.cout)
-- [x] nested functions
+- [x] [nested functions](https://github.com/TYSON-Alii/Rule/edit/main/README.md#nested-functions)
 - [ ] $try, $catch, $endtry
 - [ ] function, variable aliasing
+## Docs
+#### f-string literal _[string formatting]_
+```py
+hello = "Hello";
+f"{hello}, World."
+```
+#### .. operator _[range operator]_
+```cpp
+for (auto&& i : 2..10)
+	cout << i << '\n';
+```
+#### #redefine _[safer macro definition]_
+```cpp
+#define pi 4
+#redefine pi 3
+#redefine pi 3.14f
+// no error
+```
+#### \` \` string literal _[raw string literal]_
+```d
+`C:\throw\no\error\`
+```
+#### $rep/$rep[:] _[rewrites n times]_
+```cpp
+cout
+$rep 5 << __n__ << ", " // __n__ is order
+// prints '0, 1, 2, 3, 4, 5'
 
+$rep[12:14] cout << "num: __n__";
+// prints 'num: 12', 'num: 13' and 'num: 14' 
+```
+#### defs _[safe, functional and overloadable macros]_
+
+* 3 brackets options '(), <> and []'
+```cpp
+$def foo( /*args*/ ) { /*your code here*/ }
+$def foo<> { } // accept
+$def foo[] { } // accept
+```
+* 3 separator options ',', ':' and ';'
+```cpp
+$def bar(arg1,arg2:arg3) { }
+$def bar<arg1:arg2> { }
+$def bar[arg1;arg2;arg3,arg4] { }
+```
+* strong names :: -> .
+```cpp
+$def foo::bar() { } // accept
+$def bar->foo[] { } // accept
+$def boo.bom<> { }  // accept
+```
+* overloadable
+```cpp
+$def foo() { }
+$def foo<> { }
+$def foo[] { }
+foo() // no error
+$def foo(arg1,arg2) { }
+$def foo(arg1:arg2) { }
+foo(1:2) // no error
+$def foo[arg1;arg2] { }
+$def foo[arg3;arg4] { }
+foo[1;2] // error..
+```
+* variadic
+```cpp
+$def bar(...) { [...] }
+bar(1,2,3,4) // convert -> 1,2,3,4
+
+$def bar(...) { [... sep] }
+bar(1,2,3,4) // convert -> 1 sep 2 sep 3 sep 4
+
+$def print(...) { cout [... << ' ' <<] }
+print(3,"selam",5.7,true) // convert -> cout << 3 << ' ' << "selam" << ' ' << 5.7 << ' ' << true
+
+// the final separator determines the separator of the variadics
+$def foo(separator_comma,...) { }
+foo(1,2,3,4)
+$def foo(separator_colon:...) { }
+foo(1:2:3:4)
+$def foo(separator_semicolor;...) { }
+foo(1;2;3;4)
+
+$def log<err_type:first_arg,...> {
+	cerr << err_type << ':' << first_arg << ' ' << [... << ' ' <<]
+}
+log<log_type::warn:"this is warning", "line at:", 42>
+
+$def mes[arg1,arg2:...] {
+	cout << "def name is: " << __def__ << '\n';
+	cout << "bracket type: " << __bracket_beg__ << __bracket_end__ << '\n';
+	cout << "arg count: " << __arg_count__ << '\n';
+	cout << "first arg: " << __arg_at 0 << '\n';
+	cout << "last arg: " << __arg_at (__arg_count__ - 1) << '\n';
+}
+mes[1, "sss":6.9:kk]
+// prints
+/*
+def name is: mes
+bracket type: []
+arg count: 4
+first arg: 1
+last arg: kk
+*/
+```
+#### $macro _[safe macros]_
+```cpp
+$macro pi 3
+$macro pi 3.14 // accept
+$macro math.pi 3.1415 // also math::pi and math->pi accept
+```
+#### no parent bracket requiremnt
+```rs
+if true or false {
+
+}
+while true {
+
+}
+```
+#### $operator _[create unary operator]_
+```cpp
+$operator echo
+auto operator echo(auto&& any_thing) { cout << any_thing; }
+echo "Heloo";
+echo 74;
+$operator sqr
+auto operator sqr(int num) { return num * num; }
+sqr sqr num; // works (operation priority right to left)
+```
+#### nested functions
+```cpp
+int main() {
+	fn my_priv_func() {
+		fn extra_private() {
+			fn yes_not_enough() {
+			
+			}
+		}
+	}
+	// fn foo(); // not working function definition, only declaration
+}
+```
+## Example
 ```cpp
 const str& falanke = R"(
 $operator falan
