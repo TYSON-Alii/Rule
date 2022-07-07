@@ -51,6 +51,7 @@ public:
 		list<str> args;
 		list<str> seps;
 		list<Word> val;
+		bool variadic = false;
 	};
 	list<Def> defs;
 	list<lit_pair> lits {
@@ -73,9 +74,9 @@ public:
 	};
 	Rule() = default;
 	Rule(const str& _code) : code(_code) { parse(); };
-	Rule(const str& _code, Rule parent) : code(_code) {
-		macros.insert(macros.end(), parent.macros.begin(), parent.macros.end());
-		defs.insert(defs.end(), parent.defs.begin(), parent.defs.end());
+	Rule(const str& _code, Rule* parent) : code(_code), is_child(true) {
+		macros.insert(macros.end(), parent->macros.begin(), parent->macros.end());
+		defs.insert(defs.end(), parent->defs.begin(), parent->defs.end());
 		parse();
 	};
 	str parse() {
@@ -147,7 +148,7 @@ public:
 				const str& s = str(i.begin() + 10, i.end() - 1);
 				const auto& f = std::find_if(s.begin(), s.end(), [](auto ch) { return std::isspace(ch); });
 				const str& m = str(s.begin(), f);
-				const str& val = Rule(str(f, s.end())).afterCode;
+				const str& val = Rule(str(f, s.end()), this).afterCode;
 				temp_split.push_back("#ifdef "s + m);
 				temp_split.push_back("#undef "s + m);
 				temp_split.push_back("#endif"s);
@@ -175,14 +176,14 @@ public:
 						c.replace(start_pos, 5, i_str);
 						start_pos += i_str.length();
 					}
-					auto s = Rule(c, *this).split;
+					auto s = Rule(c, this).split;
 					temp_split.insert(temp_split.end(), s.begin(), s.end());
 				}
 			}
 			else if (i.starts_with("$rep[")) {
 				str counts = str(i.begin() + 5, i.begin() + i.find(']')), t = str(i.begin() + i.find(']') + 1, i.end());
-				const str& beg_str = Rule(str(counts.begin(), counts.begin() + counts.find_first_of(':')), *this).afterCode;
-				const str& end_str = Rule(str(counts.begin() + counts.find_first_of(':') + 1, counts.end()), *this).afterCode;
+				const str& beg_str = Rule(str(counts.begin(), counts.begin() + counts.find_first_of(':')), this).afterCode;
+				const str& end_str = Rule(str(counts.begin() + counts.find_first_of(':') + 1, counts.end()), this).afterCode;
 				uint beg = (uint)te_interp(beg_str.c_str(), 0), end = (uint)te_interp(end_str.c_str(), 0);
 				if (beg < end) {
 					for (uint i = beg; i <= end; i++) {
@@ -206,7 +207,7 @@ public:
 							c.replace(start_pos, 5, i_str);
 							start_pos += i_str.length();
 						}
-						auto s = Rule(c, *this).split;
+						auto s = Rule(c, this).split;
 						temp_split.insert(temp_split.end(), s.begin(), s.end());
 						if (end == 0 and i == 0) break;
 					}
@@ -218,7 +219,7 @@ public:
 				uint pos = t.find_first_of(' ');
 				if (pos != str::npos) {
 					macro.name = str(t.begin(), t.begin() + pos);
-					macro.value = Rule(str(t.begin() + pos + 1, t.end()), *this).split;
+					macro.value = Rule(str(t.begin() + pos + 1, t.end()), this).split;
 				}
 				else {
 					macro.name = t;
@@ -255,10 +256,14 @@ public:
 						def.seps.push_back(*itt);
 					c = !c;
 				}
+				if (def.args.back() == "...") {
+					def.variadic = true;
+					def.args.pop_back();
+				}
 				it++;
 				t.clear();
 				go_end(it,t,"}");
-				def.val = Rule(t, *this).split;
+				def.val = Rule(t, this).split;
 				defs.push_back(def);
 			}
 			else
@@ -288,7 +293,6 @@ public:
 				it++;
 				int bc = 0, cc = 0, sc = 0, tc = 0;
 				str t;
-				uint arg_count = 0;
 				list<str> seps;
 				while (!(bc == 0 and cc == 0 and sc == 0 and tc == 0 and *it == bracket.end)) {
 					if		(*it == "(") bc++;
@@ -300,7 +304,6 @@ public:
 					else if (*it == "<") tc++;
 					else if (*it == ">") tc--;
 					if (bc == 0 and cc == 0 and sc == 0 and tc == 0 and *it != "," and *it != ":" and *it != ";") {
-						arg_count++;
 						t += *it;
 						if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or it->type != word::op and (it + 1)->type != word::op or it->type == word::keyw or it->type == word::token) t += ' ';
 					}
@@ -312,21 +315,22 @@ public:
 					it++;
 				}
 				if (not t.empty()) args.push_back(t);
-				for (const auto& s : same_n) if (s.args.size() == arg_count) tsame_n.push_back(s);
+				for (const auto& s : same_n) if (s.args.size() == args.size() or (s.variadic and s.args.size() <= args.size())) tsame_n.push_back(s);
 				same_n = tsame_n;
 				tsame_n.clear();
-				if (same_n.empty())
-					cerr << "oops.. cannot find correct def.";
-				for (const auto& s : same_n) if (s.seps == seps) tsame_n.push_back(s);
+				for (const auto& s : same_n)
+					if (s.seps == seps or (s.variadic and s.seps == list<str>(seps.begin(), seps.begin() + s.seps.size()) and (s.seps.empty() or s.seps.size() == seps.size() or all_of(seps.begin() + s.seps.size(), seps.end(), [&](const auto& i) { return i == s.seps.back(); }))))
+						tsame_n.push_back(s);
 				same_n = tsame_n;
 				tsame_n.clear();
 				if (same_n.empty() or same_n.size() != 1)
-					cerr << "oops.. cannot find correct def.";
+					cerr << "oops.. cannot find correct def.\n";
 				else {
 					const auto& def = same_n.back();
 					struct arg_t : str { using str::basic_string; arg_t() = default; arg_t(const arg_t&) = default; arg_t(const str& s) : str(s) { }; str value; };
 					list<arg_t> f_args;
 					auto arg_it = args.begin();
+					auto va_args = list<str>(args.begin() + def.args.size(), args.end());
 					arg_t t_arg;
 					for (const auto& i : def.args) {
 						t_arg = i;
@@ -338,8 +342,28 @@ public:
 						const auto& i = *it;
 						if (i.type != word::op and is_in(i, f_args)) {
 							auto t = i;
-							t = Rule(find(f_args.begin(), f_args.end(), i)->value, *this).afterCode;
+							t = Rule(find(f_args.begin(), f_args.end(), i)->value, this).afterCode;
 							temp_split.push_back(t);
+						}
+						else if (def.variadic and not va_args.empty() and i == "..." and *(it - 1) == "[") {
+							temp_split.pop_back();
+							it++;
+							str sep;
+							if (*it == "]")
+								sep = ",";
+							else {
+								go_end(it, sep, "]");
+							}
+							auto n = va_args.begin();
+							auto splt = Rule(*n, this).split;
+							auto sep_splt = Rule(sep, this).split;
+							temp_split.insert(temp_split.end(), splt.begin(), splt.end());
+							n++;
+							for (; n != va_args.end(); n++) {
+								temp_split.insert(temp_split.end(), sep_splt.begin(), sep_splt.end());
+								splt = Rule(*n, this).split;
+								temp_split.insert(temp_split.end(), splt.begin(), splt.end());
+							}
 						}
 						else if (i == "__def__") {
 							temp_split.push_back(def.name);
@@ -351,7 +375,7 @@ public:
 							temp_split.push_back(def.bracket.end);
 						}
 						else if (i == "__arg_count__") {
-							temp_split.push_back(Word(to_string(def.args.size()), word::number));
+							temp_split.push_back(Word(to_string(args.size()), word::number));
 						}
 						else if (i == "__arg_at") {
 							it++;
@@ -360,7 +384,12 @@ public:
 								it++, go_end(it, at, ")");
 							else
 								at = *it;
-							temp_split.push_back(def.args[(uint)te_interp(at.c_str(), 0)]);
+							uint start_pos = 0;
+							while((start_pos = at.find("__arg_count__", start_pos)) != str::npos) {
+								at.replace(start_pos, 13, to_string(args.size()));
+								start_pos += to_string(args.size()).length();
+							}
+							temp_split.push_back(args[(uint)te_interp(at.c_str(), 0)]);
 						}
 						else {
 							temp_split.push_back(i);
@@ -413,7 +442,7 @@ public:
 					it++;
 				}
 				t += "){";
-				const auto& splt = Rule(t, *this).split;
+				const auto& splt = Rule(t, this).split;
 				temp_split.insert(temp_split.end(), splt.begin(), splt.end());
 			}
 			else if (i == "fn") {
@@ -428,7 +457,7 @@ public:
 				it++;
 				go_end(it, body, "}");
 				body += '}';
-				const auto& splt = Rule("struct { "s + type + " operator()(" + args + ')' + '{' + body + '}' + fn_name + ';', *this).split;
+				const auto& splt = Rule("struct { "s + type + " operator()(" + args + ')' + '{' + body + '}' + fn_name + ';', this).split;
 				temp_split.insert(temp_split.end(), splt.begin(), splt.end());
 			}
 			else if (i == "..") {
@@ -472,13 +501,13 @@ public:
 				go_end(it, args, ")");
 				it++;
 				if (*it == ";") {
-					const auto& splt = Rule(rule_space + type + ' ' + name + '(' + args + "); }\n", *this).split;
+					const auto& splt = Rule(rule_space + type + ' ' + name + '(' + args + "); }\n", this).split;
 					temp_split.insert(temp_split.end(), splt.begin(), splt.end());
 				}
 				else {
 					it++;
 					go_end(it, body, "}");
-					const auto& splt = Rule(rule_space + type + ' ' + name + '(' + args + ')' + "{ " + body + " }" + "}\n", *this).split;
+					const auto& splt = Rule(rule_space + type + ' ' + name + '(' + args + ')' + "{ " + body + " }" + "}\n", this).split;
 					temp_split.insert(temp_split.end(), splt.begin(), splt.end());
 				}
 			}
@@ -513,6 +542,14 @@ public:
 		split = temp_split;
 		temp_split.clear();
 		afterCode.clear();
+		if (not is_child) {
+			afterCode = "#include <vector>\n#include <string>\n";
+			afterCode += R"(namespace std {
+	inline string to_string(string s) { return s; }
+	inline string to_string(string* s) { return *s; }
+}
+)";
+		}
 		uint tab = 0;
 		for (auto it = split.begin(); it != split.end(); it++) {
 			afterCode += *it;
@@ -540,6 +577,7 @@ public:
 	list<Word> split;
 	str code, afterCode;
 private:
+	bool is_child = false;
 	uint meta_counter = 0;
 	const str& rule_space = "namespace __cxx_rule { ";
 	list<Word> split_code(const str& code) {
@@ -692,7 +730,7 @@ private:
 					it++;
 				};
 				s += conv_s;
-				s += Rule(temp, *this).afterCode + add_s;
+				s += Rule(temp, this).afterCode + add_s;
 				temp.clear();
 			}
 			else {
