@@ -47,9 +47,17 @@ $def log[type:message] {
 $def log<mes> {
 	throw std::runtime_error(mes)
 }
+$def print[...] { cout << [... << ' ' <<] }
+$def average(...) { (([... +]) / __arg_count__) }
+$def err<err_type:first_mes,...> {
+	cerr << err_type << ':' << first_mes << ' ' << [... << ' ' <<]
+}
 
 auto main() -> int {
 	// comment
+	print[1,selam,"meaba"];
+	average(1,2,3,4,5);
+	err<"error":"check this after", "line:", 5>;
 	str hello = "Hello";
 	enum class log_type { info, error, warning };
 	log[log_type::error:"oops.."];
@@ -87,6 +95,12 @@ auto main() -> int {
 
 ```cpp
 // OUTPUT:
+#include <vector>
+#include <string>
+namespace std {
+        inline string to_string(string s) { return s; }
+        inline string to_string(string* s) { return *s; }
+}
 namespace __cxx_rule{
         void __operator_falan(auto v){
                 cout<<"falanke filanke: "<<v<<'\n';
@@ -105,6 +119,9 @@ namespace __cxx_rule{
 #endif
 #define M_PI 3.14
 auto main()->int{
+        cout<<1<<' '<<selam<<' '<<"meaba";
+        ((1+2+"its cursed number."+4+5)/5);
+        cerr<<"error"<<':'<<"check this after"<<' '<<"line:"<<' '<<5;
         str hello="Hello";
         enum class log_type{
                 info,error,warning }
