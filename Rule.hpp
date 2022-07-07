@@ -230,7 +230,7 @@ public:
 					*f = macro;
 			}
 			else if (i.starts_with("$operator ")) {
-				user_ops.push_back(OP { str(i.begin() + 10, i.end()), true });
+				user_ops.push_back(OP { str(i.begin() + 9, i.end()), true });
 			}
 			else if (i.starts_with("$def ")) {
 				str t = str(i.begin() + 5, i.end());
