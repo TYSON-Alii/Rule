@@ -323,6 +323,20 @@ public:
 						tsame_n.push_back(s);
 				same_n = tsame_n;
 				tsame_n.clear();
+				if (same_n.size() > 1) {
+					for (const auto& i : same_n)
+						if (not i.variadic)
+							tsame_n.push_back(i);
+					if (tsame_n.empty()) {
+						auto first = same_n.begin(), last = same_n.end(), lowest = first;
+						while (++first != last)
+							if (first->seps.size() < lowest->seps.size()) 
+								lowest = first;
+						tsame_n.push_back(*lowest);
+					}
+					same_n = tsame_n;
+					tsame_n.clear();
+				}
 				if (same_n.empty() or same_n.size() != 1)
 					cerr << "oops.. cannot find correct def.\n";
 				else {
