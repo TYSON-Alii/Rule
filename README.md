@@ -66,7 +66,7 @@ $def bar(arg1,arg2:arg3) { }
 $def bar<arg1:arg2> { }
 $def bar[arg1;arg2;arg3,arg4] { }
 ```
-* string literal like '', "" and \`\` etc..
+* string literal like ' ', " " and \` \` etc..
 ```cpp
 $def foo"arg" { arg } // same, $def foo"" { __arg__ }
 $def foo'' { __arg__ } // accept
