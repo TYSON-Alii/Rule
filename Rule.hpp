@@ -21,7 +21,12 @@ public:
 		word type = word::no;
 	};
 	struct lit_not_in { char beg, end; };
-	struct lit_pair { lit_pair(const str& b, const str& e, const lit_not_in& l, bool bs, bool ln_p, bool a_b, bool a_e) : beg(b), end(e), not_in(l), bslash(bs), ln_problem(ln_p), add_beg(a_b), add_end(a_e) { }; str beg, end; lit_not_in not_in; bool bslash, ln_problem, add_beg, add_end; };
+	struct lit_pair {
+		lit_pair(const str& b, const str& e, const lit_not_in& l, bool bs, bool ln_p, bool a_b, bool a_e, bool cbdf = false) : beg(b), end(e), not_in(l), bslash(bs), ln_problem(ln_p), add_beg(a_b), add_end(a_e), can_be_def(cbdf) { };
+		str beg, end;
+		lit_not_in not_in;
+		bool bslash, ln_problem, add_beg, add_end, can_be_def = false;
+	};
 	list<str> tokens {"const", "constexpr", "virtual", "static", "inline", "explicit", "friend", "volatile", "register", "short", "long", "signed", "unsigned" };
 	list<str> keywords { "fn", "auto", "return", "break", "case", "catch", "class", "concept", "continue", "decltype", "default", "delete", "do", "else", "if", "enum", "export", "extern", "for", "goto", "namespace", "new", "noexcept", "operator", "private", "public", "protected", "requires", "sizeof", "struct", "switch", "template", "throw", "try", "typedef", "typename", "union", "while" };
 	list<str> rbracket {"if", "while" };
@@ -35,7 +40,7 @@ public:
 		OP() = default;
 		OP(const OP&) = default;
 		OP(const str& s) : str(s) { };
-		bool unary = true;
+		bool unary = true; // op[args], op() args, op<>... ekle
 	};
 	list<OP> user_ops;
 	struct Macro {
@@ -55,29 +60,31 @@ public:
 	};
 	list<Def> defs;
 	list<lit_pair> lits {
-		lit_pair("\"","\"", {'\0','\0'}, true, true, true, true),
-		lit_pair("'","'", {'\0','\0'}, true, true, true, true),
-		lit_pair("//","\n", {'\0','\0'}, true, false, true, false),
-		lit_pair("/*","*/", {'\0','\0'}, false, false, true, true),
-		lit_pair("#","\n", {'\0','\0'}, true, false, true, false),
-		lit_pair("$def","{", {'\0','\0'}, false, false, true, false),
-		lit_pair("$if"," ", {'\0','\0'}, false, false, true, false),
-		lit_pair("$","\n", {'\0','\0'}, true, false, true, false),
-		lit_pair("`","`", {'\0','\0'}, false, false, true, true),
-		lit_pair("f\"","\"", {'{','}'}, true, true, true, true),
-		lit_pair("R\"","\"", {'\0','\0'}, true, true, true, true)
+		lit_pair("\"","\"", {'\0','\0'}, 1, 1, 1, 1, 1),
+		lit_pair("'","'", {'\0','\0'}, 1, 1, 1, 1, 1),
+		lit_pair("//","\n", {'\0','\0'}, 1, 0, 1, 0, 0),
+		lit_pair("/*","*/", {'\0','\0'}, 0, 0, 1, 1, 0),
+		lit_pair("#","\n", {'\0','\0'}, 1, 0, 1, 0, 0),
+		lit_pair("$def","{", {'\0','\0'}, 0, 0, 1, 0, 0),
+		lit_pair("$if"," ", {'\0','\0'}, 0, 0, 1, 0, 0),
+		lit_pair("$","\n", {'\0','\0'}, 1, 0, 1, 0, 0),
+		lit_pair("`","`", {'\0','\0'}, 0, 0, 1, 1, 1),
+		lit_pair("f\"","\"", {'{','}'}, 1, 1, 1, 1, 1),
+		lit_pair("R\"","\"", {'\0','\0'}, 1, 1, 1, 1, 1),
+		lit_pair("[[","]]", {'\0','\0'}, 0, 0, 1, 1, 0) // convert initializer list to std::vector
 		// maybe later
 		// lit_pair("/+","+/", {'\0','\0'}, false)
 		// lit_pair("u8\"","\"", {'\0','\0'}, true)
 		// lit_pair("L\"","\"", {'\0','\0'}, true)
-		// lit_pair("[[","]]", {'\0','\0'}, false)
 	};
 	Rule() = default;
 	Rule(const str& _code) : code(_code) { parse(); };
 	Rule(const str& _code, Rule* parent) : code(_code), is_child(true) {
-		macros.insert(macros.end(), parent->macros.begin(), parent->macros.end());
-		defs.insert(defs.end(), parent->defs.begin(), parent->defs.end());
+		macros = parent->macros;
+		defs = parent->defs;
 		parse();
+		parent->macros = macros;
+		parent->defs = defs;
 	};
 	str parse() {
 		const auto& is_in = [](auto v, auto l) { for (const auto& i : l) if (v == i) return true; return false; };
@@ -85,16 +92,14 @@ public:
 		const auto& is_def = [&](const auto& v) { for (const auto& i : defs) if (v == i.name) return true; return false; };
 		const auto& is_digit = [](char c) { return c > char(47) and c < char(58); };
 		const auto& go_end = [&](auto& it, auto& val, const auto& ch) {
-			int bc = 0, cc = 0, sc = 0, tc = 0;
-			while (!(bc == 0 and cc == 0 and sc == 0 and tc == 0 and *it == ch)) {
+			int bc = 0, cc = 0, sc = 0;
+			while (!(bc == 0 and cc == 0 and sc == 0 and *it == ch)) {
 				if		(*it == "(") bc++;
 				else if (*it == ")") bc--;
 				else if (*it == "{") cc++;
 				else if (*it == "}") cc--;
 				else if (*it == "[") sc++;
 				else if (*it == "]") sc--;
-				else if (*it == "<") tc++;
-				else if (*it == ">") tc--;
 				val += *it;
 				if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or it->type != word::op and (it + 1)->type != word::op or it->type == word::keyw or it->type == word::token) val += ' ';
 				it++;
@@ -240,25 +245,33 @@ public:
 				auto itt = s.begin();
 				def.name = *itt;
 				itt++;
-				def.bracket.begin = *itt;
-				if (*itt == "(")
-					def.bracket.end = ")";
-				else if (*itt == "[")
-					def.bracket.end = "]";
-				else if (*itt == "<")
-					def.bracket.end = ">";
-				itt++;
-				bool c = false;
-				for (; *itt != def.bracket.end; itt++) {
-					if (not c)
-						def.args.push_back(*itt);
-					else
-						def.seps.push_back(*itt);
-					c = !c;
+				if (itt->type == word::lit) {
+					const auto lit = *find_if(lits.begin(), lits.end(), [&](auto&& i) { return itt->starts_with(i.beg) and itt->ends_with(i.end); });
+					def.bracket.begin = lit.beg;
+					def.bracket.end = lit.end;
+					def.args.push_back(str(itt->begin() + lit.beg.length(), itt->end() - lit.end.length()));
 				}
-				if (def.args.back() == "...") {
-					def.variadic = true;
-					def.args.pop_back();
+				else {
+					def.bracket.begin = *itt;
+					if (*itt == "(")
+						def.bracket.end = ")";
+					else if (*itt == "[")
+						def.bracket.end = "]";
+					else if (*itt == "<")
+						def.bracket.end = ">";
+					itt++;
+					bool c = false;
+					for (; *itt != def.bracket.end; itt++) {
+						if (not c)
+							def.args.push_back(*itt);
+						else
+							def.seps.push_back(*itt);
+						c = !c;
+					}
+					if (def.args.back() == "...") {
+						def.variadic = true;
+						def.args.pop_back();
+					}
 				}
 				it++;
 				t.clear();
@@ -286,127 +299,157 @@ public:
 				list<str> args;
 				for (const auto& d : defs) if (d.name == i) same_n.push_back(d);
 				it++;
-				for (const auto& s : same_n) if (s.bracket.begin == *it) tsame_n.push_back(s);
-				same_n = tsame_n;
-				tsame_n.clear();
-				const auto& bracket = same_n.back().bracket;
-				it++;
-				int bc = 0, cc = 0, sc = 0, tc = 0;
-				str t;
-				list<str> seps;
-				while (!(bc == 0 and cc == 0 and sc == 0 and tc == 0 and *it == bracket.end)) {
-					if		(*it == "(") bc++;
-					else if (*it == ")") bc--;
-					else if (*it == "{") cc++;
-					else if (*it == "}") cc--;
-					else if (*it == "[") sc++;
-					else if (*it == "]") sc--;
-					else if (*it == "<") tc++;
-					else if (*it == ">") tc--;
-					if (bc == 0 and cc == 0 and sc == 0 and tc == 0 and *it != "," and *it != ":" and *it != ";") {
-						t += *it;
-						if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or it->type != word::op and (it + 1)->type != word::op or it->type == word::keyw or it->type == word::token) t += ' ';
-					}
-					else if (*it == "," or *it == ":" or *it == ";") {
-						seps.push_back(*it);
-						args.push_back(t);
-						t.clear();
-					}
-					it++;
-				}
-				if (not t.empty()) args.push_back(t);
-				for (const auto& s : same_n) if (s.args.size() == args.size() or (s.variadic and s.args.size() <= args.size())) tsame_n.push_back(s);
-				same_n = tsame_n;
-				tsame_n.clear();
-				for (const auto& s : same_n)
-					if (s.seps == seps or (s.variadic and s.seps == list<str>(seps.begin(), seps.begin() + s.seps.size()) and (s.seps.empty() or s.seps.size() == seps.size() or all_of(seps.begin() + s.seps.size(), seps.end(), [&](const auto& i) { return i == s.seps.back(); }))))
-						tsame_n.push_back(s);
-				same_n = tsame_n;
-				tsame_n.clear();
-				if (same_n.size() > 1) {
-					for (const auto& i : same_n)
-						if (not i.variadic)
-							tsame_n.push_back(i);
-					if (tsame_n.empty()) {
-						auto first = same_n.begin(), last = same_n.end(), lowest = first;
-						while (++first != last)
-							if (first->seps.size() < lowest->seps.size()) 
-								lowest = first;
-						tsame_n.push_back(*lowest);
-					}
+				const bool is_lit = it->type == word::lit;
+				if (is_lit) {
+					const auto lit = *find_if(lits.begin(), lits.end(), [&](auto&& i) { return it->starts_with(i.beg) and it->ends_with(i.end); });
+					const auto r = Rule(str(it->begin() + lit.beg.size(), it->end() - lit.end.size())).split;
+					for (const auto& s : same_n) if (it->starts_with(s.bracket.begin) and it->ends_with(s.bracket.end)) tsame_n.push_back(s);
 					same_n = tsame_n;
 					tsame_n.clear();
-				}
-				if (same_n.empty() or same_n.size() != 1)
-					cerr << "oops.. cannot find correct def.\n";
-				else {
-					const auto& def = same_n.back();
-					struct arg_t : str { using str::basic_string; arg_t() = default; arg_t(const arg_t&) = default; arg_t(const str& s) : str(s) { }; str value; };
-					list<arg_t> f_args;
-					auto arg_it = args.begin();
-					auto va_args = list<str>(args.begin() + def.args.size(), args.end());
-					arg_t t_arg;
-					for (const auto& i : def.args) {
-						t_arg = i;
-						t_arg.value = *arg_it;
-						arg_it++;
-						f_args.push_back(t_arg);
+					if (same_n.empty() or same_n.size() != 1)
+						cerr << "oops.. cannot find correct def.\n";
+					else {
+						const auto& def = same_n.back();
+						for (auto it = def.val.begin(); it != def.val.end(); it++) {
+							const auto& i = *it;
+							if (i == "__def__") {
+								temp_split.push_back(def.name);
+							}
+							if (i == "__arg__" or i == def.args.back()) {
+								temp_split.insert(temp_split.end(), r.begin(), r.end());
+							}
+							else if (i == "__bracket_beg__") {
+								temp_split.push_back(def.bracket.begin);
+							}
+							else if (i == "__bracket_end__") {
+								temp_split.push_back(def.bracket.end);
+							}
+						}
 					}
-					for (auto it = def.val.begin(); it != def.val.end(); it++) {
-						const auto& i = *it;
-						if (i.type != word::op and is_in(i, f_args)) {
-							auto t = i;
-							t = Rule(find(f_args.begin(), f_args.end(), i)->value, this).afterCode;
-							temp_split.push_back(t);
+				}
+				else {
+					for (const auto& s : same_n) if (s.bracket.begin == *it) tsame_n.push_back(s);
+					same_n = tsame_n;
+					tsame_n.clear();
+					const auto& bracket = same_n.back().bracket;
+					it++;
+					int bc = 0, cc = 0, sc = 0, tc = 0;
+					str t;
+					list<str> seps;
+					while (!(bc == 0 and cc == 0 and sc == 0 and tc == 0 and *it == bracket.end)) {
+						if (*it == "(") bc++;
+						else if (*it == ")") bc--;
+						else if (*it == "{") cc++;
+						else if (*it == "}") cc--;
+						else if (*it == "[") sc++;
+						else if (*it == "]") sc--;
+						else if (*it == "<") tc++;
+						else if (*it == ">") tc--;
+						if (bc == 0 and cc == 0 and sc == 0 and tc == 0 and *it != "," and *it != ":" and *it != ";") {
+							t += *it;
+							if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or it->type != word::op and (it + 1)->type != word::op or it->type == word::keyw or it->type == word::token) t += ' ';
 						}
-						else if (def.variadic and not va_args.empty() and i == "..." and *(it - 1) == "[") {
-							temp_split.pop_back();
-							it++;
-							str sep;
-							if (*it == "]")
-								sep = ",";
-							else {
-								go_end(it, sep, "]");
+						else if (*it == "," or *it == ":" or *it == ";") {
+							seps.push_back(*it);
+							args.push_back(t);
+							t.clear();
+						}
+						it++;
+					}
+					if (not t.empty()) args.push_back(t);
+					for (const auto& s : same_n) if (s.args.size() == args.size() or (s.variadic and s.args.size() <= args.size())) tsame_n.push_back(s);
+					same_n = tsame_n;
+					tsame_n.clear();
+					for (const auto& s : same_n)
+						if (s.seps == seps or (s.variadic and s.seps == list<str>(seps.begin(), seps.begin() + s.seps.size()) and (s.seps.empty() or s.seps.size() == seps.size() or all_of(seps.begin() + s.seps.size(), seps.end(), [&](const auto& i) { return i == s.seps.back(); }))))
+							tsame_n.push_back(s);
+					same_n = tsame_n;
+					tsame_n.clear();
+					if (same_n.size() > 1) {
+						for (const auto& i : same_n)
+							if (not i.variadic)
+								tsame_n.push_back(i);
+						if (tsame_n.empty()) {
+							auto first = same_n.begin(), last = same_n.end(), lowest = first;
+							while (++first != last)
+								if (first->seps.size() < lowest->seps.size())
+									lowest = first;
+							tsame_n.push_back(*lowest);
+						}
+						same_n = tsame_n;
+						tsame_n.clear();
+					}
+					if (same_n.empty() or same_n.size() != 1)
+						cerr << "oops.. cannot find correct def.\n";
+					else {
+						const auto& def = same_n.back();
+						struct arg_t : str { using str::basic_string; arg_t() = default; arg_t(const arg_t&) = default; arg_t(const str& s) : str(s) { }; str value; };
+						list<arg_t> f_args;
+						auto arg_it = args.begin();
+						auto va_args = list<str>(args.begin() + def.args.size(), args.end());
+						arg_t t_arg;
+						for (const auto& i : def.args) {
+							t_arg = i;
+							t_arg.value = *arg_it;
+							arg_it++;
+							f_args.push_back(t_arg);
+						}
+						for (auto it = def.val.begin(); it != def.val.end(); it++) {
+							const auto& i = *it;
+							if (i.type != word::op and is_in(i, f_args)) {
+								auto t = i;
+								t = Rule(find(f_args.begin(), f_args.end(), i)->value, this).afterCode;
+								temp_split.push_back(t);
 							}
-							auto n = va_args.begin();
-							auto splt = Rule(*n, this).split;
-							auto sep_splt = Rule(sep, this).split;
-							temp_split.insert(temp_split.end(), splt.begin(), splt.end());
-							n++;
-							for (; n != va_args.end(); n++) {
-								temp_split.insert(temp_split.end(), sep_splt.begin(), sep_splt.end());
-								splt = Rule(*n, this).split;
+							else if (def.variadic and not va_args.empty() and i == "..." and *(it - 1) == "[") {
+								temp_split.pop_back();
+								it++;
+								str sep;
+								if (*it == "]")
+									sep = ",";
+								else {
+									go_end(it, sep, "]");
+								}
+								auto n = va_args.begin();
+								auto splt = Rule(*n, this).split;
+								auto sep_splt = Rule(sep, this).split;
 								temp_split.insert(temp_split.end(), splt.begin(), splt.end());
+								n++;
+								for (; n != va_args.end(); n++) {
+									temp_split.insert(temp_split.end(), sep_splt.begin(), sep_splt.end());
+									splt = Rule(*n, this).split;
+									temp_split.insert(temp_split.end(), splt.begin(), splt.end());
+								}
 							}
-						}
-						else if (i == "__def__") {
-							temp_split.push_back(def.name);
-						}
-						else if (i == "__bracket_beg__") {
-							temp_split.push_back(def.bracket.begin);
-						}
-						else if (i == "__bracket_end__") {
-							temp_split.push_back(def.bracket.end);
-						}
-						else if (i == "__arg_count__") {
-							temp_split.push_back(Word(to_string(args.size()), word::number));
-						}
-						else if (i == "__arg_at") {
-							it++;
-							str at;
-							if (*it == "(")
-								it++, go_end(it, at, ")");
-							else
-								at = *it;
-							uint start_pos = 0;
-							while((start_pos = at.find("__arg_count__", start_pos)) != str::npos) {
-								at.replace(start_pos, 13, to_string(args.size()));
-								start_pos += to_string(args.size()).length();
+							else if (i == "__def__") {
+								temp_split.push_back(def.name);
 							}
-							temp_split.push_back(args[(uint)te_interp(at.c_str(), 0)]);
-						}
-						else {
-							temp_split.push_back(i);
+							else if (i == "__bracket_beg__") {
+								temp_split.push_back(def.bracket.begin);
+							}
+							else if (i == "__bracket_end__") {
+								temp_split.push_back(def.bracket.end);
+							}
+							else if (i == "__arg_count__") {
+								temp_split.push_back(Word(to_string(args.size()), word::number));
+							}
+							else if (i == "__arg_at") {
+								it++;
+								str at;
+								if (*it == "(")
+									it++, go_end(it, at, ")");
+								else
+									at = *it;
+								uint start_pos = 0;
+								while ((start_pos = at.find("__arg_count__", start_pos)) != str::npos) {
+									at.replace(start_pos, 13, to_string(args.size()));
+									start_pos += to_string(args.size()).length();
+								}
+								temp_split.push_back(args[(uint)te_interp(at.c_str(), 0)]);
+							}
+							else {
+								temp_split.push_back(i);
+							}
 						}
 					}
 				}
