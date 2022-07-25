@@ -66,6 +66,12 @@ $def bar(arg1,arg2:arg3) { }
 $def bar<arg1:arg2> { }
 $def bar[arg1;arg2;arg3,arg4] { }
 ```
+* string literal like '', "" and \`\` etc..
+```cpp
+$def foo"arg" { arg } // same, $def foo"" { __arg__ }
+$def foo'' { __arg__ } // accept
+$def foo`` { } // accept
+```
 * strong names :: -> .
 ```cpp
 $def foo::bar() { } // accept
@@ -77,6 +83,8 @@ $def boo.bom<> { }  // accept
 $def foo() { }
 $def foo<> { }
 $def foo[] { }
+$def foo'' { }
+$def foo"" { }
 foo() // no error
 $def foo(arg1,arg2) { }
 $def foo(arg1:arg2) { }
