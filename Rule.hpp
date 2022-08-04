@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <vector>
 #include <string>
+#include <format>
 #include "tinyexpr.h"
 using namespace std;
 using str = string;
