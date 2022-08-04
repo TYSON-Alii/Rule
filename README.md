@@ -26,6 +26,7 @@ features;
 ```py
 hello = "Hello";
 f"{hello}, World."
+f`C:\{hello}\falan`
 ```
 #### .. operator _[range operator]_
 ```cpp
@@ -49,22 +50,24 @@ cout
 $rep 5 << __n__ << ", " // __n__ is order
 // prints '0, 1, 2, 3, 4, 5'
 
-$rep[12:14] cout << "num: __n__";
-// prints 'num: 12', 'num: 13' and 'num: 14' 
+$rep[12:14] cout << "num: " <<  __n__;
+// prints 'num: 12', 'num: 13' and 'num: 14'
 ```
 #### defs _[safe, functional and overloadable macros]_
 
-* 3 brackets options '(), <> and []'
+* 4 brackets options '(), <>, [] and [[ ]]'
 ```cpp
 $def foo( /*args*/ ) { /*your code here*/ }
 $def foo<> { } // accept
-$def foo[] { } // accept
+$def foo[] { } // acceptaccept
+$def foo[[]] { } // accept
 ```
-* 3 separator options ',', ':' and ';'
+* 5 separator options ',', ':', ';', '=>' and '?' 
 ```cpp
 $def bar(arg1,arg2:arg3) { }
 $def bar<arg1:arg2> { }
-$def bar[arg1;arg2;arg3,arg4] { }
+$def bar[arg1;arg2?arg3,arg4] { }
+$def bar[[arg1=>arg2]] { }
 ```
 * string literal like ' ', " " and \` \` etc..
 ```cpp
@@ -88,6 +91,7 @@ $def foo"" { }
 foo() // no error
 $def foo(arg1,arg2) { }
 $def foo(arg1:arg2) { }
+$def foo(arg1=>arg2) { }
 foo(1:2) // no error
 $def foo[arg1;arg2] { }
 $def foo[arg3;arg4] { }
@@ -133,6 +137,15 @@ arg count: 4
 first arg: 1
 last arg: kk
 */
+```
+* some examples
+```cpp
+$def print[...] { cout << [... << ' ' <<] }
+$def average(...) { (float([... +]) / (float)__arg_count__) }
+$def err<err_type:first_mes,...> { cerr << err_type << ':' << first_mes << ' ' << [... << ' ' <<] }
+$def for[it_name : list] { for(auto it_name = list.begin(); it_name != list.end(); it_name++) }
+$def list.map(list : find => make) { for (auto& i : list) if i == find { i = make; } }
+$def if<_if ? _con : _else> { ([&]() { if _con { return _if; } return _else; }()) }
 ```
 #### $macro _[safe macros]_
 ```cpp
@@ -186,9 +199,9 @@ int operator filan(int v); // declaration
 inline auto operator echo(auto v) { return cout << v << '\n'; }
 
 #redefine M_PI 3.14f
-$macro math.pi 4 // also math::pi and mat->pi accepted
+$macro math.pi 4 // also math::pi and math->pi accepted
 $macro math.pi 3.14
-$macro 3 "its cursed number."
+$macro 42 "do you mean 'everthing'??"
 
 // brackets ( ), [ ], < >
 // separators ',', ':', ';'
@@ -199,23 +212,40 @@ $def log<mes> {
 	throw std::runtime_error(mes)
 }
 $def print[...] { cout << [... << ' ' <<] }
-$def average(...) { (([... +]) / __arg_count__) }
+$def average(...) { (float([... +]) / (float)__arg_count__) }
 $def err<err_type:first_mes,...> {
 	cerr << err_type << ':' << first_mes << ' ' << [... << ' ' <<]
 }
-
+$def log'arg' {
+	cout << arg << '\n'
+	// same, cout << __arg__ << '\n'
+}
+$def for[[it_name : list]] {
+	for(auto it_name = list.begin(); it_name != list.end(); it_name++)
+}
+$def list.map(list : find => make) {
+	for (auto& i : list) if i == find { i = make; }
+}
+$def if<_if ? _con : _else> {
+	([&]() { if _con { return _if; } return _else; }())
+}
 auto main() -> int {
+	if<"selm" ? true or false : "mrb">;
 	// comment
+	list<int> l {1,1,1,5,6,1,8};
+	list.map(l : 1 => 31);
+	for[[it, l]]
+		cout << *it << '\n';
 	print[1,selam,"meaba"];
 	average(1,2,3,4,5);
 	err<"error":"check this after", "line:", 5>;
 	str hello = "Hello";
 	enum class log_type { info, error, warning };
 	log[log_type::error:"oops.."];
+	log'`hata` "falan"';
 	std::cout << f"{hello+f"wow {math.pi}."}, World." << '\n';
-	log<3>;
 	str falanke = `C:\wow\amazing`;
-	int begin = 10, end = 21;
+	int beg = 10, end = 21;
 	for (auto&& i : beg..end) falan filan i;
 	if 2 + 2 == 4 { // require curly brackets
 		echo "evet.";
@@ -226,7 +256,7 @@ auto main() -> int {
 			cout << `falanke filanke\n`;
 		}
 		fn func() {
-			$rep 3 "__n__ wow";
+			$rep 3 "wow";
 		}
 	}
 	$rep[31:30+math.pi] func(__n__);
@@ -270,40 +300,51 @@ namespace __cxx_rule{
 #endif
 #define M_PI 3.14
 auto main()->int{
+        ([&](){
+                if (true or false){
+                        return "selm";
+                }
+                return "mrb";
+        }
+        ());
+        list<int>l{
+                1,1,1,5,6,1,8 }
+        ;
+        for (auto &i:l)if (i==1){
+                i=31;
+        }
+        ;
+        for [[it,l]]cout<<*it<<'\n';
         cout<<1<<' '<<selam<<' '<<"meaba";
-        ((1+2+"its cursed number."+4+5)/5);
+        (float(1+2+3+4+5)/(float)5);
         cerr<<"error"<<':'<<"check this after"<<' '<<"line:"<<' '<<5;
         str hello="Hello";
         enum class log_type{
                 info,error,warning }
         ;
-        std::cerr<<(std::to_string(enum_name(type)) + std::string(":") + std::to_string(message))<<'\n';
+        std::cerr<<format("{}:{}",enum_name(log_type::error),"oops..")<<'\n';
         ;
-        std::cout<<(std::to_string(hello+(std::string("wow ") + std::to_string(3.14) + std::string("."))) + std::string(", World."))<<'\n';
-        throw std::runtime_error("its cursed number.");
+        cout<<R"__cxx_rule(hata)__cxx_rule" "falan"<<'\n';
+        std::cout<<format("{}, World.",hello+format("wow {}.",3.14))<<'\n';
         str falanke=R"__cxx_rule(C:\wow\amazing)__cxx_rule";
-        int begin=10,end=21;
+        int beg=10,end=21;
         for (auto &&i:__cxx_rule::__dotdot_op(beg,end))__cxx_rule::__operator_falan(__cxx_rule::__operator_filan(i));
         if (2+2==4){
                 __cxx_rule::__operator_echo("evet.");
         }
-        struct {
-                auto operator()(int wow){
-                        if (true or false){
-                                cout<<R"__cxx_rule(falanke filanke\n)__cxx_rule";
-                        }
-                        struct {
-                                auto operator()(){
-                                        "0 wow";
-                                        "1 wow";
-                                        "2 wow";
-                                        "3 wow";
-                                }
-                        }
-                        func;
+        const auto func=[&](int wow)->auto{
+                if (true or false){
+                        cout<<R"__cxx_rule(falanke filanke\n)__cxx_rule";
                 }
+                const auto func=[&]()->auto{
+                        "wow";
+                        "wow";
+                        "wow";
+                        "wow";
+                }
+                ;
         }
-        func;
+        ;
         func(31);
         func(32);
         func(33);
@@ -312,7 +353,7 @@ auto main()->int{
 namespace __cxx_rule{
         int __operator_filan(int v){
                 cout<<"oyle iste: "<<v<<'\n';
-                return v+42;
+                return v+"do you mean 'everthing'??";
         }
         }
 ```
