@@ -6,24 +6,26 @@
 #include "tinyexpr.h"
 using namespace std;
 using str = string;
-inline str ltrim(str s) { s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](auto ch) { return !std::isspace(ch); })); return s; };
-inline str rtrim(str s) { s.erase(std::find_if(s.rbegin(), s.rend(), [](auto ch) { return !std::isspace(ch); }).base(), s.end()); return s; };
+inline str ltrim(str s) { s.erase(s.begin(), find_if(s.begin(), s.end(), [](auto ch) { return !isspace(ch); })); return s; };
+inline str rtrim(str s) { s.erase(find_if(s.rbegin(), s.rend(), [](auto ch) { return !isspace(ch); }).base(), s.end()); return s; };
 inline str trim(const str& s) { return rtrim(ltrim(s)); };
+#define forx(it_name, list) for(auto it_name = list.begin(); it_name != list.end(); it_name++)
+#define findif(list, fn_body) find_if(list.begin(), list.end(), [&](auto&& i){ fn_body; })
+#define let const auto
 class Rule {
 public:
 	friend class Rule;
 	using str = string;
-	using uint = unsigned int;
+	using uint = size_t;
 	using byte = unsigned char;
-	template <typename T>
-	using list = pmr::vector<T>;
-	enum class word : byte { no, keyw, op, token, number, lit };
+	template <typename T> using list = pmr::vector<T>;
 	enum class err : uint { user_error = 100, same_def_defined_multi_times, not_supported_def_literal, unsupported_def_bracket_type, def_argument_require_sep, def_argument_require_arg, undefined_rep_count, cannot_supported_nested_funtion_decl };
 	template <err t, typename... Args> void error(const str mes, Args&&... args) { cerr << '#' << uint(t) << ' ' << vformat(mes, make_format_args(args...)) << '\n'; exit(-1); }
 	template <err t> void error(const str mes) { cerr << '#' << uint(t) << ' ' << mes << '\n'; exit(-1); }
 	enum class warn : uint { user_warning = 100, multiply_defined_macro, multiply_defined_operator, rep_repeated_once_time, cannot_find_correct_def = 201 };
 	template <warn t, typename... Args> void warning(const str mes, Args&&... args) { if (wLevel == max_wLevel or (wLevel != 0 and uint(max_wLevel - wLevel) * 100 < uint(t))) cerr << '$' << uint(t) << ' ' << vformat(mes, make_format_args(args...)) << '\n'; }
 	template <warn t> void warning(const str mes) { if (wLevel == max_wLevel or (wLevel != 0 and uint(max_wLevel - wLevel) * 100 < uint(t))) cerr << '$' << uint(t) << ' ' << mes << '\n'; }
+	enum class word : byte { no, keyw, op, token, number, lit };
 	struct Word : str {
 		using str::basic_string;
 		Word() = default;
@@ -34,10 +36,10 @@ public:
 	};
 	struct lit_not_in { char beg, end; };
 	struct lit_pair {
-		lit_pair(const str& b, const str& e, const lit_not_in& l, bool bs, bool ln_p, bool a_b, bool a_e, bool cbdf = false) : beg(b), end(e), not_in(l), bslash(bs), ln_problem(ln_p), add_beg(a_b), add_end(a_e), can_be_def(cbdf) { };
+		lit_pair(const str b, const str e, const lit_not_in l, bool bs, bool ln_p, bool a_b, bool a_e, bool cbdf = false) : beg(b), end(e), not_in(l), bslash(bs), ln_problem(ln_p), add_beg(a_b), add_end(a_e), can_be_def(cbdf) { };
 		str beg, end;
 		lit_not_in not_in;
-		bool bslash, ln_problem, add_beg, add_end, can_be_def = false;
+		bool bslash, ln_problem, add_beg, add_end, can_be_def;
 	};
 	struct OP : str {
 		using str::basic_string;
@@ -102,12 +104,12 @@ public:
 		parent->defs = defs;
 	};
 	str parse() {
-		const auto is_in = [](auto v, auto l) { for (const auto& i : l) if (v == i) return true; return false; };
-		const auto map_list = [](auto& l, const auto f, const auto m) { for (auto& i : l) if (f == i) i = m; };
-		const auto is_macro = [&](const auto& v) { for (const auto& i : macros) if (v == i.name) return true; return false; };
-		const auto is_def = [&](const auto& v) { for (const auto& i : defs) if (v == i.name) return true; return false; };
-		const auto is_digit = [](char c) { return c > char(47) and c < char(58); };
-		const auto go_end = [&](auto& it, auto& val, const auto& ch, const auto& end) {
+		let is_in = [](auto v, auto l) { for (let& i : l) if (v == i) return true; return false; };
+		let map_list = [](auto& l, let f, let m) { for (auto& i : l) if (f == i) i = m; };
+		let is_macro = [&](let& v) { for (let& i : macros) if (v == i.name) return true; return false; };
+		let is_def = [&](let& v) { for (let& i : defs) if (v == i.name) return true; return false; };
+		let is_digit = [](char c) { return c > char(47) and c < char(58); };
+		let go_end = [&](auto& it, auto& val, let& ch, let& end) {
 			int bc = 0, cc = 0, sc = 0;
 			while (!(bc == 0 and cc == 0 and sc == 0 and *it == ch)) {
 				if (*it == "(") bc++;
@@ -125,9 +127,9 @@ public:
 		split = split_code(code);
 		list<Word> temp_split;
 		str temp_str;
-		for (auto it = split.begin(); it != split.end(); it++) {
+		forx (it, split) {
 			auto& i = *it;
-			const auto& it1 = it + 1;
+			let& it1 = it + 1;
 			if (i.starts_with("//") or i.starts_with("/*")) continue;
 			else if (it1 != split.end()) {
 				auto& i1 = *it1;
@@ -145,15 +147,14 @@ public:
 				else
 					temp_split.push_back(i);
 			}
-			else
-				temp_split.push_back(i);
+			else temp_split.push_back(i);
 		}
 		split = temp_split;
 		temp_split.clear();
 		// 2nd iterate
-		for (auto it = split.begin(); it != split.end(); it++) {
-			const auto& i = *it;
-			const auto& it1 = it + 1;
+		forx(it, split) {
+			let& i = *it;
+			let& it1 = it + 1;
 			if (i.starts_with("$warn ")) {
 				warning<warn::user_warning>(Rule(str(i.begin() + 6, i.end()), this).afterCode);
 			}
@@ -162,16 +163,16 @@ public:
 			}
 			else if (i.starts_with("#redefine ")) {
 				const str s = str(i.begin() + 10, i.end() - 1);
-				const auto f = std::find_if(s.begin(), s.end(), [](auto ch) { return std::isspace(ch); });
+				let f = findif(s, return isspace(i));
 				const str m = str(s.begin(), f);
 				const str val = Rule(str(f, s.end()), this).afterCode;
-				temp_split.push_back("#ifdef "s + m);
-				temp_split.push_back("#undef "s + m);
-				temp_split.push_back("#endif"s);
-				temp_split.push_back("#define "s + m + ' ' + val);
+				temp_split.push_back(Word("#ifdef "s + m, word::lit));
+				temp_split.push_back(Word("#undef "s + m, word::lit));
+				temp_split.push_back(Word("#endif"s, word::lit));
+				temp_split.push_back(Word("#define "s + m + ' ' + val, word::lit));
 			}
 			else if (i.starts_with("$rep")) {
-				const auto splt = Rule(str(i.begin() + 4, i.end()), this).split;
+				let splt = Rule(str(i.begin() + 4, i.end()), this).split;
 				int rep_start = 0, rep_end = 0;
 				list<Word> rep_splt;
 				if (splt.front() != "[") {
@@ -240,7 +241,7 @@ public:
 				else {
 					macro.name = t;
 				}
-				auto f = find_if(macros.begin(), macros.end(), [&](const auto& i) { return i.name == macro.name; });
+				auto f = findif(macros, return i.name == macro.name);
 				if (f == macros.end())
 					macros.push_back(macro);
 				else {
@@ -262,23 +263,23 @@ public:
 				Def def;
 				auto s = split_code(t);
 				auto itt = s.begin();
-				while (find_if(def_brackets.begin(), def_brackets.end(), [&](auto&& i) { return i.beg == *itt; }) == def_brackets.end() and itt->type != word::lit) {
+				while (findif(def_brackets, return i.beg == *itt) == def_brackets.end() and itt->type != word::lit) {
 					def.name += *itt;
 					itt++;
 				}
 				if (itt->type == word::lit) {
-					const auto lit = *find_if(lits.begin(), lits.end(), [&](auto&& i) { return itt->starts_with(i.beg) and itt->ends_with(i.end); });
+					let lit = *findif(lits, return itt->starts_with(i.beg) and itt->ends_with(i.end));
 					if (not lit.can_be_def) {
 						error<err::not_supported_def_literal>("[{}] used unsupproted literal for def [{} {}]", def.name, lit.beg, lit.end);
 					}
 					else {
 						def.bracket.beg = lit.beg;
 						def.bracket.end = lit.end;
-						def.args.push_back(str(itt->begin() + lit.beg.length(), itt->end() - lit.end.length()));
+						def.args.push_back(*itt);
 					}
 				}
 				else {
-					for (const auto& i : def_brackets) {
+					for (let& i : def_brackets) {
 						if (i.beg == *itt) {
 							def.bracket = i;
 							break;
@@ -309,7 +310,7 @@ public:
 				it++;
 				t.clear();
 				if (is_def(def.name)) {
-					const auto& f = *find_if(defs.begin(), defs.end(), [&](auto&& i) { return i.name == def.name; });
+					let& f = *findif(defs, return i.name == def.name);
 					if (f.args.size() == def.args.size() and f.seps == def.seps and f.bracket.beg == def.bracket.beg and f.bracket.end == def.bracket.end) {
 						error<err::same_def_defined_multi_times>("[{}] same def's defined multi times", def.name);
 					}
@@ -318,17 +319,17 @@ public:
 				def.val = Rule(t, this).split;
 				defs.push_back(def);
 			}
-			else
-				temp_split.push_back(i);
+			else temp_split.push_back(i);
 		}
 		split = temp_split;
 		temp_split.clear();
 		// 3th iterate
-		for (auto it = split.begin(); it != split.end(); it++) {
-			const auto& i = *it;
-			const auto& it1 = it + 1;
+		forx(it, split) {
+			let& i = *it;
+			let& it1 = it + 1;
 			if (is_macro(i)) {
-				Macro& macro = *find_if(macros.begin(), macros.end(), [&](const auto& m) { return m.name == i; });
+				let& ci = i;
+				Macro& macro = *findif(macros, return i.name == ci);
 				if (not macro.value.empty()) {
 					temp_split.insert(temp_split.end(), macro.value.begin(), macro.value.end());
 				}
@@ -338,13 +339,13 @@ public:
 				const str def_name = i;
 				list<Def> same_n, tsame_n;
 				list<list<Word>> args;
-				for (const auto& d : defs) if (d.name == i) same_n.push_back(d);
+				for (let& d : defs) if (d.name == i) same_n.push_back(d);
 				it++;
 				const bool is_lit = (it->type == word::lit);
 				if (is_lit) {
-					const auto lit = *find_if(lits.begin(), lits.end(), [&](auto&& i) { return it->starts_with(i.beg) and it->ends_with(i.end); });
-					const auto r = Rule(str(it->begin() + lit.beg.size(), it->end() - lit.end.size())).split;
-					for (const auto& s : same_n) if (it->starts_with(s.bracket.beg) and it->ends_with(s.bracket.end)) tsame_n.push_back(s);
+					let lit = *findif(lits, return it->starts_with(i.beg) and it->ends_with(i.end));
+					let r = *it;
+					for (let& s : same_n) if (it->starts_with(s.bracket.beg) and it->ends_with(s.bracket.end)) tsame_n.push_back(s);
 					same_n = tsame_n;
 					tsame_n.clear();
 					if (same_n.empty() or same_n.size() != 1) {
@@ -352,14 +353,14 @@ public:
 						continue;
 					}
 					else {
-						const auto& def = same_n.back();
-						for (auto it = def.val.begin(); it != def.val.end(); it++) {
-							const auto& i = *it;
+						let& def = same_n.back();
+						forx (it, def.val) {
+							let& i = *it;
 							if (i == "__def__") {
 								temp_split.push_back(def.name);
 							}
-							if (i == "__arg__" or i == def.args.back()) {
-								temp_split.insert(temp_split.end(), r.begin(), r.end());
+							else if (i == "__arg__" or i == def.args.back()) {
+								temp_split.push_back(r);
 							}
 							else if (i == "__bracket_beg__") {
 								temp_split.push_back(def.bracket.beg);
@@ -373,14 +374,14 @@ public:
 					}
 				}
 				else {
-					for (const auto& s : same_n) if (s.bracket.beg == *it) tsame_n.push_back(s);
+					for (let& s : same_n) if (s.bracket.beg == *it) tsame_n.push_back(s);
 					same_n = tsame_n;
 					tsame_n.clear();
 					if (same_n.empty()) {
 						warning<warn::cannot_find_correct_def>("[{}] cannot find correct def", def_name), it = old_it, temp_split.push_back(i);
 						continue;
 					}
-					const auto& bracket = same_n.back().bracket;
+					let& bracket = same_n.back().bracket;
 					it++;
 					int bc = 0, cc = 0, sc = 0, tc = 0;
 					list<Word> t;
@@ -405,16 +406,16 @@ public:
 						it++;
 					}
 					if (not t.empty()) args.push_back(t);
-					for (const auto& s : same_n) if (s.args.size() == args.size() or (s.variadic and s.args.size() <= args.size())) tsame_n.push_back(s);
+					for (let& s : same_n) if (s.args.size() == args.size() or (s.variadic and s.args.size() <= args.size())) tsame_n.push_back(s);
 					same_n = tsame_n;
 					tsame_n.clear();
-					for (const auto& s : same_n)
-						if (s.seps == seps or (s.variadic and s.seps == list<str>(seps.begin(), seps.begin() + s.seps.size()) and (s.seps.empty() or s.seps.size() == seps.size() or all_of(seps.begin() + s.seps.size(), seps.end(), [&](const auto& i) { return i == s.seps.back(); }))))
+					for (let& s : same_n)
+						if (s.seps == seps or (s.variadic and s.seps == list<str>(seps.begin(), seps.begin() + s.seps.size()) and (s.seps.empty() or s.seps.size() == seps.size() or all_of(seps.begin() + s.seps.size(), seps.end(), [&](let& i) { return i == s.seps.back(); }))))
 							tsame_n.push_back(s);
 					same_n = tsame_n;
 					tsame_n.clear();
 					if (same_n.size() > 1) {
-						for (const auto& i : same_n)
+						for (let& i : same_n)
 							if (not i.variadic)
 								tsame_n.push_back(i);
 						if (tsame_n.empty()) {
@@ -432,20 +433,20 @@ public:
 						continue;
 					}
 					else {
-						const auto& def = same_n.back();
+						let& def = same_n.back();
 						struct arg_t : str { using str::basic_string; arg_t() = default; arg_t(const arg_t&) = default; arg_t(const str& s) : str(s) { }; list<Word> value; };
 						list<arg_t> f_args;
 						auto arg_it = args.begin();
 						auto va_args = list<list<Word>>(args.begin() + def.args.size(), args.end());
 						arg_t t_arg;
-						for (const auto& i : def.args) {
+						for (let& i : def.args) {
 							t_arg = i;
 							t_arg.value = *arg_it;
 							arg_it++;
 							f_args.push_back(t_arg);
 						}
 						for (auto itt = def.val.begin(); itt != def.val.end(); itt++) {
-							const auto& i = *itt;
+							let& i = *itt;
 							if (i.type != word::op and is_in(i, f_args)) {
 								auto splt = find(f_args.begin(), f_args.end(), i)->value;
 								temp_split.insert(temp_split.end(), splt.begin(), splt.end());
@@ -494,7 +495,7 @@ public:
 									at.replace(start_pos, 13, to_string(args.size()));
 									start_pos += to_string(args.size()).length();
 								}
-								const auto arg_at = args[(uint)te_interp(at.c_str(), 0)];
+								let arg_at = args[(uint)te_interp(at.c_str(), 0)];
 								temp_split.insert(temp_split.end(), arg_at.begin(), arg_at.end());
 							}
 							else {
@@ -504,17 +505,16 @@ public:
 					}
 				}
 			}
-			else
-				temp_split.push_back(i);
+			else temp_split.push_back(i);
 		}
 		split = temp_split;
 		temp_split.clear();
 		// 4th iterate
-		for (auto it = split.begin(); it != split.end(); it++) {
-			const auto& i = *it;
-			const auto& it1 = it + 1;
+		forx(it, split) {
+			let& i = *it;
+			let& it1 = it + 1;
 			if (i.front() == '`' and i.back() == '`') {
-				temp_split.push_back("R\"__cxx_rule("s + str(i.begin() + 1, i.end() - 1) + ")__cxx_rule\"");
+				temp_split.push_back(Word("R\"__cxx_rule("s + str(i.begin() + 1, i.end() - 1) + ")__cxx_rule\"", word::lit));
 			}
 			else if (i.starts_with("f\"")) {
 				parse_fliteral_format(str(i.begin() + 2, i.end() - 1), temp_split);
@@ -552,7 +552,7 @@ public:
 					it++;
 				}
 				t += "){";
-				const auto& splt = Rule(t, this).split;
+				let& splt = Rule(t, this).split;
 				temp_split.insert(temp_split.end(), splt.begin(), splt.end());
 			}
 			else if (i == "fn") {
@@ -570,7 +570,7 @@ public:
 				}
 				else {
 					go_end(it, body, "}", split.end());
-					const auto& splt = Rule("const auto "s + fn_name + " = [&](" + args + ')' + " -> " + type + '{' + body + "};", this).split;
+					let& splt = Rule("const auto "s + fn_name + " = [&](" + args + ')' + " -> " + type + '{' + body + "};", this).split;
 					temp_split.insert(temp_split.end(), splt.begin(), splt.end());
 				}
 			}
@@ -583,7 +583,7 @@ public:
 				str type, args, body;
 				temp_split.pop_back();
 				it--;
-				const auto t = it;
+				let t = it;
 				if (it != split.begin()) {
 					it--;
 					while (it != split.begin() and !temp_split.empty() and is_in(*it, tokens)) temp_split.pop_back(), it--;
@@ -597,18 +597,18 @@ public:
 				go_end(it, args, ")", split.end());
 				it++;
 				if (*it == ";") {
-					const auto& splt = Rule(rule_space + type + ' ' + name + '(' + args + "); }\n", this).split;
+					let& splt = Rule(rule_space + type + ' ' + name + '(' + args + "); }\n", this).split;
 					temp_split.insert(temp_split.end(), splt.begin(), splt.end());
 				}
 				else {
 					it++;
 					go_end(it, body, "}", split.end());
-					const auto& splt = Rule(rule_space + type + ' ' + name + '(' + args + ')' + "{ " + body + " }" + "}\n", this).split;
+					let& splt = Rule(rule_space + type + ' ' + name + '(' + args + ')' + "{ " + body + " }" + "}\n", this).split;
 					temp_split.insert(temp_split.end(), splt.begin(), splt.end());
 				}
 			}
 			else if (is_in(i, user_ops)) {
-				const auto& o = *find(user_ops.begin(), user_ops.end(), i);
+				let& o = *find(user_ops.begin(), user_ops.end(), i);
 				if (o.unary) {
 					str op, var;
 					Word v;
@@ -632,8 +632,7 @@ public:
 					temp_split.push_back(v);
 				}
 			}
-			else
-				temp_split.push_back(i);
+			else temp_split.push_back(i);
 		}
 		split = temp_split;
 		temp_split.clear();
@@ -647,7 +646,7 @@ public:
 )";
 		}
 		uint tab = 0;
-		for (auto it = split.begin(); it != split.end(); it++) {
+		forx(it, split) {
 			afterCode += *it;
 			if (it->front() == '#')
 				afterCode += '\n';
@@ -684,45 +683,40 @@ private:
 	uint meta_counter = 0;
 	const str& rule_space = "namespace __cxx_rule { ";
 	list<Word> split_code(const str& code) {
-		const auto& is_in = [](auto v, auto l) { for (const auto& i : l) if (v == i) return true; return false; };
-		const auto& is_digit = [](char c) { return c > char(47) and c < char(58); };
+		let& is_in = [](auto v, auto l) { for (let& i : l) if (v == i) return true; return false; };
+		let& is_digit = [](char c) { return c > char(47) and c < char(58); };
 		sort(ops.begin(), ops.end(), [](const str& first, const str& second) { return first.size() > second.size(); });
-		sort(lits.begin(), lits.end(), [](const auto& first, const auto& second) { return first.beg.size() > second.beg.size(); });
+		sort(lits.begin(), lits.end(), [](let& first, let& second) { return first.beg.size() > second.beg.size(); });
 		Word temp_str;
 		list<Word> split, temp_split;
-		const auto& is_number = [&](const str& s) {
+		let& is_number = [&](const str& s) {
 			if (s.empty() || ((!is_digit(s[0])) && (s[0] != '-') && (s[0] != '+'))) return false;
-			for (const auto& i : s) if (i != '.' and !is_digit(i)) return false;
+			for (let& i : s) if (i != '.' and !is_digit(i)) return false;
 			return true;
 		};
-		const auto& new_splt = [&]() {
+		let& new_splt = [&]() {
 			if (!temp_str.empty()) {
-				if (is_in(temp_str, ops))
-					temp_str.type = word::op;
-				else if (is_in(temp_str, tokens))
-					temp_str.type = word::token;
-				else if (is_number(temp_str))
-					temp_str.type = word::number;
-				else if (is_in(temp_str, keywords))
-					temp_str.type = word::keyw;
-				else
-					temp_str.type = word::no;
+				if (is_in(temp_str, ops)) temp_str.type = word::op;
+				else if (is_in(temp_str, tokens)) temp_str.type = word::token;
+				else if (is_number(temp_str)) temp_str.type = word::number;
+				else if (is_in(temp_str, keywords)) temp_str.type = word::keyw;
+				else temp_str.type = word::no;
 				split.push_back(temp_str);
 				temp_str = Word();
 			};
 		};
-		for (auto it = code.begin(); it != code.end(); it++) {
-			const auto& i = *it;
-			const auto& it_pos = distance(code.begin(), it);
+		forx(it, code) {
+			let& i = *it;
+			let& it_pos = distance(code.begin(), it);
 			if (isspace(i)) {
 				new_splt();
 				continue;
 			}
-			for (const auto& l : lits) {
-				const auto& len = l.beg.size();
-				const auto& end_len = l.end.size();
+			for (let& l : lits) {
+				let& len = l.beg.size();
+				let& end_len = l.end.size();
 				if (it_pos + len <= code.size()) {
-					const auto& s = str(it, it + len);
+					let& s = str(it, it + len);
 					if (s == l.beg) {
 						new_splt();
 						it += len;
@@ -766,10 +760,10 @@ private:
 					};
 				};
 			};
-			for (const auto& op : ops) {
-				const auto& len = op.size();
+			for (let& op : ops) {
+				let& len = op.size();
 				if (it_pos + len <= code.size()) {
-					const auto& s = str(it, it + len);
+					let& s = str(it, it + len);
 					if (s == op) {
 						new_splt();
 						it += len - 1;
@@ -783,8 +777,8 @@ private:
 		_exit:;
 		};
 		if (!temp_str.empty()) new_splt();
-		for (auto it = split.begin(); it != split.end(); it++) {
-			const auto& i = *it;
+		forx(it, split) {
+			let& i = *it;
 			Word t;
 			if (is_digit(i.back())) {
 				t.type = word::number;
@@ -806,13 +800,13 @@ private:
 		return split;
 	};
 	str parse_fliteral(const str& code, const str& str_t = "std::string", const str& converter = "std::to_string") {
-		const auto& is_in = [](auto v, auto l) { for (const auto& i : l) if (v == i) return true; return false; };
+		let& is_in = [](auto v, auto l) { for (let& i : l) if (v == i) return true; return false; };
 		str s = str_t + "(\"", temp;
 		const str& conv_s = "\") + "s + converter + '(';
 		const str& add_s = ") + "s + str_t + "(\"";
 		const str& null_s = " + "s + str_t + "(\"\")";
-		for (auto it = code.begin(); it != code.end(); it++) {
-			const auto& i = *it;
+		forx(it, code) {
+			let& i = *it;
 			if (i == '{') {
 				it++;
 				int bc = 0, cc = 0, sc = 0;
@@ -849,8 +843,8 @@ private:
 	list<Word>& parse_fliteral_format(const str code, auto& splt) {
 		list<list<Word>> args;
 		str s, t;
-		for (auto it = code.begin(); it != code.end(); it++) {
-			const auto& i = *it;
+		forx(it, code) {
+			let& i = *it;
 			if (i == '{') {
 				it++;
 				int bc = 0, cc = 0, sc = 0;
