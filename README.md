@@ -71,7 +71,7 @@ $def bar[[arg1=>arg2]] { }
 ```
 * string literal like ' ', " " and \` \` etc..
 ```cpp
-$def foo"arg" { arg } // same, $def foo"" { __arg__ }
+$def foo"arg" { "arg" } // same, $def foo"" { __arg__ }
 $def foo'' { __arg__ } // accept
 $def foo`` { } // accept
 ```
@@ -216,11 +216,11 @@ $def average(...) { (float([... +]) / (float)__arg_count__) }
 $def err<err_type:first_mes,...> {
 	cerr << err_type << ':' << first_mes << ' ' << [... << ' ' <<]
 }
-$def log'arg' {
-	cout << arg << '\n'
+$def log'arg' { // that's signle line, log` ` support multi line
+	cout << 'arg' << '\n'
 	// same, cout << __arg__ << '\n'
 }
-$def for[[it_name : list]] {
+$def for[it_name : list] {
 	for(auto it_name = list.begin(); it_name != list.end(); it_name++)
 }
 $def list.map(list : find => make) {
@@ -234,8 +234,6 @@ auto main() -> int {
 	// comment
 	list<int> l {1,1,1,5,6,1,8};
 	list.map(l : 1 => 31);
-	for[[it, l]]
-		cout << *it << '\n';
 	print[1,selam,"meaba"];
 	average(1,2,3,4,5);
 	err<"error":"check this after", "line:", 5>;
@@ -255,8 +253,9 @@ auto main() -> int {
 		if true or false {
 			cout << `falanke filanke\n`;
 		}
-		fn func() {
+		fn func() -> int {
 			$rep 3 "wow";
+			return 31;
 		}
 	}
 	$rep[31:30+math.pi] func(__n__);
@@ -268,10 +267,10 @@ int operator filan(int v) {
 }
 )";
 auto main() -> int {
-	Rule parser(falanke);
-	cout << parser.afterCode;
+	Rule cxx(falanke);
+	cout << cxx.afterCode;
 	return 0;
-};
+}
 ```
 
 ```cpp
@@ -314,7 +313,9 @@ auto main()->int{
                 i=31;
         }
         ;
-        for [[it,l]]cout<<*it<<'\n';
+        for (auto it=list.begin();
+        it!=list.end();
+        it++)cout<<*it<<'\n';
         cout<<1<<' '<<selam<<' '<<"meaba";
         (float(1+2+3+4+5)/(float)5);
         cerr<<"error"<<':'<<"check this after"<<' '<<"line:"<<' '<<5;
@@ -324,7 +325,7 @@ auto main()->int{
         ;
         std::cerr<<format("{}:{}",enum_name(log_type::error),"oops..")<<'\n';
         ;
-        cout<<R"__cxx_rule(hata)__cxx_rule" "falan"<<'\n';
+        cout<<'`hata` "falan"'<<'\n';
         std::cout<<format("{}, World.",hello+format("wow {}.",3.14))<<'\n';
         str falanke=R"__cxx_rule(C:\wow\amazing)__cxx_rule";
         int beg=10,end=21;
@@ -337,23 +338,25 @@ auto main()->int{
                         cout<<R"__cxx_rule(falanke filanke\n)__cxx_rule";
                 }
                 const auto func=[&]()->auto{
-                        "wow";
-                        "wow";
-                        "wow";
-                        "wow";
+                        {
+                                "wow";
+                                "wow";
+                                "wow";
+                                "wow";
+                                return 31;
+                        }
                 }
                 ;
+                ;
+                func(31);
+                func(32);
+                func(33);
+                return 0;
         }
-        ;
-        func(31);
-        func(32);
-        func(33);
-        return 0;
-}
-namespace __cxx_rule{
-        int __operator_filan(int v){
-                cout<<"oyle iste: "<<v<<'\n';
-                return v+"do you mean 'everthing'??";
-        }
-        }
+        namespace __cxx_rule{
+                int __operator_filan(int v){
+                        cout<<"oyle iste: "<<v<<'\n';
+                        return v+"do you mean 'everthing'??";
+                }
+                }
 ```
