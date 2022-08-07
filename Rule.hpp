@@ -65,7 +65,7 @@ public:
 		bool variadic = false;
 	};
 	const list<str> tokens{ "const", "constexpr", "virtual", "static", "inline", "explicit", "friend", "volatile", "register", "short", "long", "signed", "unsigned" };
-	list<str> keywords{ "fn", /*"self", "var", "let", "lambda", "elif", "pub", "priv", "global", "ret", "del", "real", "wchar", "bit", "ptr", "str", "wstr", "uint", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64", "", "", "", "", "", "",*/ "auto", "return", "break", "case", "catch", "class", "concept", "continue", "decltype", "default", "delete", "do", "else", "if", "enum", "export", "extern", "for", "goto", "namespace", "new", "noexcept", "operator", "private", "public", "protected", "requires", "sizeof", "struct", "switch", "template", "throw", "try", "typedef", "typename", "union", "while" };
+	list<str> keywords{ "fn", "int", "bool", "float", "double", "char", "auto", "return", "break", "case", "catch", "class", "concept", "continue", "decltype", "default", "delete", "do", "else", "if", "enum", "export", "extern", "for", "goto", "namespace", "new", "noexcept", "operator", "private", "public", "protected", "requires", "sizeof", "struct", "switch", "template", "throw", "try", "typedef", "typename", "union", "while" };
 	const list<str> rbracket{ "if", "while" };
 	list<str> ops{
 		"{", "}","[", "]", "(", ")", "<", ">", "=", "+", "-", "/", "*", "%", "&", "|", "^", "~", ".", ":", ",", ";", "?", "@",
@@ -152,11 +152,10 @@ public:
 			else if (it1 != split.end()) {
 				auto& i1 = *it1;
 				if (i == "::" or i == "->" or i == ".") {
-					if (it != split.begin() and (it != split.begin() and (it - 1)->type == word::no))
-						temp_split.back() += i + i1;
+					if (it != split.begin() and (it - 1)->type == word::no)
+						temp_split.back() += i + i1, it++;
 					else
-						temp_split.push_back(i + i1);
-					it++;
+						temp_split.push_back(i);
 				}
 				else if (i == "operator" and (i1.type == word::op or (i1.front() == '"' and i1.back() == '"'))) {
 					temp_split.push_back(i + i1);
@@ -619,7 +618,7 @@ public:
 				}
 				else {
 					go_end(it, body, "}", split.end());
-					let& splt = Rule("const auto "s + fn_name + " = [&](" + args + ')' + " -> " + type + '{' + body + "};", this).split;
+					let& splt = Rule("const auto "s + fn_name + " = [&](" + args + ") -> " + type + '{' + body + "};", this).split;
 					temp_split.insert(temp_split.end(), splt.begin(), splt.end());
 				}
 			}
@@ -687,27 +686,24 @@ public:
 		split = temp_split;
 		temp_split.clear();
 		afterCode.clear();
-		if (not is_child) {
-
-		}
 		uint tab = 0;
 		forx(it, split) {
 			afterCode += *it;
 			if (it->front() == '#')
 				afterCode += '\n';
-			else if (it + 1 != split.end()) {
+			else {
 				if (it->back() == ';' or it->back() == '{' or it->back() == '}') {
 					if (*it == "{") tab++;
 					else if (*it == "}") {
 						if (*(afterCode.end() - 2) == '\t')
 							afterCode.erase(afterCode.end() - 2);
 						if (tab != 0) tab--;
-					};
+					}
 					afterCode += '\n';
 					for (uint i = 0; i < tab; i++)
 						afterCode += '\t';
 				}
-				else if (!afterCode.ends_with("\n"))
+				else if (it + 1 != split.end() and !afterCode.ends_with("\n"))
 					if (*(it + 1) == "}" or it->type != word::op and (it + 1)->type != word::op or it->type == word::keyw or it->type == word::token)
 						afterCode += ' ';
 			}
