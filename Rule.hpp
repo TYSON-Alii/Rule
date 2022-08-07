@@ -1,6 +1,8 @@
 #include <iostream>
 #include <algorithm>
 #include <vector>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <format>
 #include "tinyexpr.h"
@@ -14,12 +16,13 @@ inline str trim(const str& s) { return rtrim(ltrim(s)); };
 #define let const auto
 class Rule {
 public:
+	enum load_type { from_file, from_str };
 	friend class Rule;
 	using str = string;
 	using uint = size_t;
 	using byte = unsigned char;
 	template <typename T> using list = pmr::vector<T>;
-	enum class err : uint { user_error = 100, same_def_defined_multi_times, not_supported_def_literal, unsupported_def_bracket_type, def_argument_require_sep, def_argument_require_arg, undefined_rep_count, cannot_supported_nested_funtion_decl };
+	enum class err : uint { user_error = 100, unexpected_argument, import_file_cannot_open, same_def_defined_multi_times, not_supported_def_literal, unsupported_def_bracket_type, def_argument_require_sep, def_argument_require_arg, undefined_rep_count, cannot_supported_nested_funtion_decl };
 	template <err t, typename... Args> void error(const str mes, Args&&... args) { cerr << '#' << uint(t) << ' ' << vformat(mes, make_format_args(args...)) << '\n'; exit(-1); }
 	template <err t> void error(const str mes) { cerr << '#' << uint(t) << ' ' << mes << '\n'; exit(-1); }
 	enum class warn : uint { user_warning = 100, multiply_defined_macro, multiply_defined_operator, rep_repeated_once_time, cannot_find_correct_def = 201 };
@@ -62,12 +65,12 @@ public:
 		bool variadic = false;
 	};
 	const list<str> tokens{ "const", "constexpr", "virtual", "static", "inline", "explicit", "friend", "volatile", "register", "short", "long", "signed", "unsigned" };
-	list<str> keywords{ "fn", "auto", "return", "break", "case", "catch", "class", "concept", "continue", "decltype", "default", "delete", "do", "else", "if", "enum", "export", "extern", "for", "goto", "namespace", "new", "noexcept", "operator", "private", "public", "protected", "requires", "sizeof", "struct", "switch", "template", "throw", "try", "typedef", "typename", "union", "while" };
+	list<str> keywords{ "fn", /*"self", "var", "let", "lambda", "elif", "pub", "priv", "global", "ret", "del", "real", "wchar", "bit", "ptr", "str", "wstr", "uint", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64", "", "", "", "", "", "",*/ "auto", "return", "break", "case", "catch", "class", "concept", "continue", "decltype", "default", "delete", "do", "else", "if", "enum", "export", "extern", "for", "goto", "namespace", "new", "noexcept", "operator", "private", "public", "protected", "requires", "sizeof", "struct", "switch", "template", "throw", "try", "typedef", "typename", "union", "while" };
 	const list<str> rbracket{ "if", "while" };
 	list<str> ops{
-		"{", "}","[", "]", "(", ")", "<", ">", "=", "+", "-", "/", "*", "%", "&", "|", "^", ".", ":", ",", ";", "?", "@",
-		"==", "!=", ">=", "<=", "<<", ">>", "--", "++", "&&", "||", "+=", "-=", "*=", "/=", "%=", "^=", "|=", "&=", "->", "=>", "::", "..", "[[", "]]",
-		"<=>", "<<=", ">>=", "...", "==="
+		"{", "}","[", "]", "(", ")", "<", ">", "=", "+", "-", "/", "*", "%", "&", "|", "^", "~", ".", ":", ",", ";", "?", "@",
+		"==", "!=", ">=", "<=", "<<", ">>", "--", "++", "&&", "||", ":=", "+=", "-=", "*=", "/=", "%=", "^=", "|=", "&=", "~=", "^^", "->", "=>", "::", "..", "[[", "]]", "<[", "]>",
+		"<=>", "<<=", ">>=", "...", "===", "..=", "^^="
 	};
 	list<OP> user_ops;
 	list<Macro> macros;
@@ -91,17 +94,29 @@ public:
 		// maybe later
 		// lit_pair("/+","+/", {'\0','\0'})
 	};
-	list<str> def_seps{ ",", ":", ";", "=>", "?" };
-	list<bracket_t> def_brackets{ {"(",")"}, {"[","]"}, {"<",">"}, {"[[","]]"} };
+	const list<str> def_seps{ ",", ":", ";", "=>", "?", ".." };
+	const list<bracket_t> def_brackets{ {"(",")"}, {"[","]"}, {"<",">"}, {"[[","]]"}, {"<[","]>"}};
 	Rule() = default;
-	Rule(const str& _code) : code(_code) { parse(); };
+	Rule(const str s, load_type lt) {
+		if (lt == from_str)
+			code = s;
+		else {
+			const auto file = ifstream(s);
+			stringstream ss;
+			ss << file.rdbuf();
+			code = ss.str();
+		}
+		parse();
+	};
 	Rule(const str& _code, Rule* parent) : code(_code), is_child(true) {
 		macros = parent->macros;
 		defs = parent->defs;
 		wLevel = parent->wLevel;
+		user_ops = parent->user_ops;
 		parse();
 		parent->macros = macros;
 		parent->defs = defs;
+		parent->user_ops = user_ops;
 	};
 	str parse() {
 		let is_in = [](auto v, auto l) { for (let& i : l) if (v == i) return true; return false; };
@@ -124,6 +139,9 @@ public:
 				it++;
 			};
 		};
+		if (not is_child) {
+			code = "$import __cxx_utility.hxx\n"s + code;
+		}
 		split = split_code(code);
 		list<Word> temp_split;
 		str temp_str;
@@ -160,6 +178,16 @@ public:
 			}
 			else if (i.starts_with("$err ")) {
 				error<err::user_error>(Rule(str(i.begin() + 5, i.end()), this).afterCode);
+			}
+			else if (i.starts_with("$import ")) {
+				const str fname = trim(str(i.begin() + 8, i.end()));
+				const auto file = ifstream(fname);
+				if (not file.is_open())
+					error<err::import_file_cannot_open>("import file '{}' cannot open", fname);
+				stringstream ss;
+				ss << file.rdbuf();
+				const auto splt = Rule(ss.str(), this).split;
+				temp_split.insert(temp_split.end(), splt.begin(), splt.end());
 			}
 			else if (i.starts_with("#redefine ")) {
 				const str s = str(i.begin() + 10, i.end() - 1);
@@ -335,6 +363,7 @@ public:
 				}
 			}
 			else if (is_def(i)) {
+				if (it1 == split.end()) continue;
 				auto old_it = it;
 				const str def_name = i;
 				list<Def> same_n, tsame_n;
@@ -522,14 +551,34 @@ public:
 			else if (i.starts_with("f`")) {
 				parse_fliteral_format("R\"__cxx_rule("s + str(i.begin() + 2, i.end() - 1) + ")__cxx_rule\"", temp_split);
 			}
+			else if (i == ":=") {
+				if ((it - 1)->type == word::no) {
+					temp_split.pop_back();
+					temp_split.push_back(Word("auto", word::keyw));
+					temp_split.push_back(Word(*(it-1)));
+					temp_split.push_back(Word("=", word::op));
+				}
+				else {
+					error<err::unexpected_argument>("unexpected argument before {}", i);
+				}
+			}
+			else if (i == "const" or i == "constexpr") {
+				if (it1->type == word::no and (*(it + 2) == "="  or *(it + 2) == "(" or *(it + 2) == "{")) {
+					temp_split.push_back(Word(i, word::keyw));
+					temp_split.push_back(Word("auto", word::keyw));
+					temp_split.push_back(Word(*it1));
+					it++;
+				}
+				else temp_split.push_back(i);
+			}
 			else if (is_in(i, rbracket)) {
 				temp_split.push_back(i);
+				if (it1 == split.end()) continue;
 				if (*it1 == "(") {
 					auto cit = it1 + 1;
 					str c;
 					go_end(cit, c, ")", split.end());
-					if (*(cit + 1) == "{")
-						continue;
+					if (*(cit + 1) == "{") continue;
 				}
 				str t = "(";
 				it++;
@@ -552,7 +601,7 @@ public:
 					it++;
 				}
 				t += "){";
-				let& splt = Rule(t, this).split;
+				let splt = Rule(t, this).split;
 				temp_split.insert(temp_split.end(), splt.begin(), splt.end());
 			}
 			else if (i == "fn") {
@@ -626,6 +675,7 @@ public:
 						vl.push_back("__cxx_rule::__operator_"s + op);
 					}
 					for (const str& s : vl) v += s + '(';
+					if (var == "(") it++, go_end(it, var, ")", split.end()), var += ')';
 					v += var;
 					v.type = word::no;
 					for (uint i = 0; i < op_c; i++) v += ')';
@@ -638,12 +688,7 @@ public:
 		temp_split.clear();
 		afterCode.clear();
 		if (not is_child) {
-			afterCode = "#include <vector>\n#include <string>\n";
-			afterCode += R"(namespace std {
-	inline string to_string(string s) { return s; }
-	inline string to_string(string* s) { return *s; }
-}
-)";
+
 		}
 		uint tab = 0;
 		forx(it, split) {
