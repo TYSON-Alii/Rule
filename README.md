@@ -2,7 +2,7 @@
 features;
 - [x] [f-string literal](https://github.com/TYSON-Alii/Rule#f-string-literal-string-formatting)
 - [x] [.. operator](https://github.com/TYSON-Alii/Rule#-operator-range-operator)
-- [x] auto specifier after const/constexpr keyword
+- [x] [auto specifier after const/constexpr keyword](https://github.com/TYSON-Alii/Rule#auto-specifier-after-constconstexpr-keyword)
 - [x] [#redefine](https://github.com/TYSON-Alii/Rule#redefine-safer-macro-definition)
 - [ ] #indefine
 - [ ] @ operator
@@ -14,7 +14,7 @@ features;
 - [ ] local macros
 - [x] [removing parent bracket requiment](https://github.com/TYSON-Alii/Rule#no-parent-bracket-requiremnt)
 - [ ] => operator for lambda
-- [x] auto type declaration with := operator
+- [x] [auto type declaration with := operator](https://github.com/TYSON-Alii/Rule#auto-type-variable-definition-with--operator)
 - [ ] infile keyword
 - [x] [$operator](https://github.com/TYSON-Alii/Rule#operator-create-unary-operator)
 - [ ] typespace
