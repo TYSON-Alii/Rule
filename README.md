@@ -59,9 +59,10 @@ $rep[12:14] cout << "num: " <<  __n__;
 * 5 brackets options '(), <>, [], [[ ]], <[ ]>'
 ```cpp
 $def foo( /*args*/ ) { /*your code here*/ }
-$def foo<> { } // accept
-$def foo[] { } // acceptaccept
-$def foo[[]] { } // accept
+$def foo< > { } // accept
+$def foo[ ] { } // accept
+$def foo[[ ]] { } // accept
+$def foo<[ ]> { } // accept
 ```
 * 6 separator options ',', ':', ';', '=>', '..' and '?' 
 ```cpp
