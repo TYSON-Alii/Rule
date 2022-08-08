@@ -14,6 +14,7 @@ inline str trim(const str& s) { return rtrim(ltrim(s)); };
 #define forx(it_name, list) for(auto it_name = list.begin(); it_name != list.end(); it_name++)
 #define findif(list, fn_body) find_if(list.begin(), list.end(), [&](auto&& i){ fn_body; })
 #define let const auto
+template <typename T> ostream& operator<<(ostream& os, const pmr::vector<T>& l) { for (auto&& i : l) { os << i << '\n'; }; return os; };
 class Rule {
 public:
 	enum load_type { from_file, from_str };
@@ -102,13 +103,15 @@ public:
 			code = s;
 		else {
 			const auto file = ifstream(s);
+			if (not file.is_open())
+				error<err::import_file_cannot_open>("file '{}' cannot open", s);
 			stringstream ss;
 			ss << file.rdbuf();
 			code = ss.str();
 		}
 		parse();
 	};
-	Rule(const str& _code, Rule* parent) : code(_code), is_child(true) {
+	Rule(const str& _code, Rule* parent, bool b = false) : code(_code), is_child(true) {
 		macros = parent->macros;
 		defs = parent->defs;
 		wLevel = parent->wLevel;
@@ -293,8 +296,13 @@ public:
 				while (findif(def_brackets, return i.beg == *itt) == def_brackets.end() and itt->type != word::lit) {
 					def.name += *itt;
 					itt++;
+					if (itt == s.end()) break;
 				}
-				if (itt->type == word::lit) {
+				if (itt == s.end()) {
+					def.bracket.beg = "{";
+					def.bracket.end = "}";
+				}
+				else if (itt->type == word::lit) {
 					let lit = *findif(lits, return itt->starts_with(i.beg) and itt->ends_with(i.end));
 					if (not lit.can_be_def) {
 						error<err::not_supported_def_literal>("[{}] used unsupproted literal for def [{} {}]", def.name, lit.beg, lit.end);
@@ -382,6 +390,16 @@ public:
 					}
 					else {
 						let& def = same_n.back();
+						str s;
+						if (lit.bslash) {
+							forx(it, r) {
+								if (*it == '\\' and is_in(*(it + 1), "\\\n\t\b"s + lit.end)) s += *(it + 1), it++;
+								else s += *it;
+							}
+						}
+						else
+							s = r;
+						let conv = Rule(str(s.begin() + lit.beg.size(), s.end() - lit.end.size()), this).split;
 						forx (it, def.val) {
 							let& i = *it;
 							if (i == "__def__") {
@@ -390,15 +408,50 @@ public:
 							else if (i == "__arg__" or i == def.args.back()) {
 								temp_split.push_back(r);
 							}
+							else if (i == "__arg_no_pp__" or i == def.args.back()) {
+								temp_split.push_back(str(s.begin() + lit.beg.size(), s.end() - lit.end.size()));
+							}
+							else if (i == "__arg_conv__" or i == def.args.back()) {
+								temp_split.insert(temp_split.end(), conv.begin(), conv.end());
+							}
+							else if (i == "__prefix__") {
+								temp_split.push_back(def.bracket.beg);
+							}
+							else if (i == "__postfix__") {
+								temp_split.push_back(def.bracket.end);
+							}
+							else
+								temp_split.push_back(i);
+						}
+					}
+				}
+				else if (*it == "{") {
+					let def_it = findif(defs, return i.name == def_name and i.bracket.beg == "{" and i.bracket.end == "}");
+					if (def_it == defs.end())
+						warning<warn::cannot_find_correct_def>("[{}] cannot find correct def", def_name), it = old_it, temp_split.push_back(i);
+					else {
+						it++;
+						str s;
+						go_end(it, s, "}", split.end());
+						let def = *def_it;
+						forx(itt, def.val) {
+							let& i = *itt;
+							if (i == "__def__") {
+								temp_split.push_back(def.name);
+							}
+							else if (i == "__arg__") {
+								let splt = Rule(s, this).split;
+								temp_split.insert(temp_split.end(), splt.begin(), splt.end());
+							}
 							else if (i == "__bracket_beg__") {
 								temp_split.push_back(def.bracket.beg);
 							}
 							else if (i == "__bracket_end__") {
 								temp_split.push_back(def.bracket.end);
 							}
-							else
-								temp_split.push_back(i);
+							else temp_split.push_back(i);
 						}
+						it++;
 					}
 				}
 				else {
@@ -473,7 +526,7 @@ public:
 							arg_it++;
 							f_args.push_back(t_arg);
 						}
-						for (auto itt = def.val.begin(); itt != def.val.end(); itt++) {
+						forx(itt, def.val) {
 							let& i = *itt;
 							if (i.type != word::op and is_in(i, f_args)) {
 								auto splt = find(f_args.begin(), f_args.end(), i)->value;
@@ -692,11 +745,13 @@ public:
 			if (it->front() == '#')
 				afterCode += '\n';
 			else {
-				if (it->back() == ';' or it->back() == '{' or it->back() == '}') {
+				if (it->front() == ';' or it->front() == '{' or it->front() == '}') {
 					if (*it == "{") tab++;
 					else if (*it == "}") {
-						if (*(afterCode.end() - 2) == '\t')
-							afterCode.erase(afterCode.end() - 2);
+						if (afterCode.ends_with("\t}"))
+							afterCode.pop_back(), afterCode.pop_back(), afterCode += '}';
+						if ((it + 1) != split.end() and *(it + 1) == ";")
+							afterCode += ';', it++;
 						if (tab != 0) tab--;
 					}
 					afterCode += '\n';
