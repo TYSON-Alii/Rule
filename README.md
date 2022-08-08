@@ -78,6 +78,19 @@ $def foo"arg" { "arg" } // same, $def foo"" { __arg__ }
 $def foo'' { __arg__ } // accept
 $def foo`` { } // accept
 ```
+* block style
+```cpp
+$def once {
+	{ static const auto Once = [&]() { __arg__ return nullptr; }(); }
+}
+int i = 0;
+while (true) {
+	once {
+		cout << i << '\n';
+	}
+	i++;
+}
+```
 * strong names :: -> .
 ```cpp
 $def foo::bar() { } // accept
@@ -206,7 +219,6 @@ int main() {
 // $import __cxx_utility.hxx included automaticly
 $operator falan
 $operator filan
-$operator echo
 
 void operator falan(auto v) {
 	cout << "falanke filanke: " << v << '\n';
@@ -250,7 +262,12 @@ auto main() -> int {
 	std::cout << f"{hello+f`wow {math.pi}.`}, World." << '\n';
 	str falanke = `C:\wow\amazing`;
 	int beg = 10, end = 21;
-	for (auto&& i : beg..end) falan filan (i + 1);
+	for (auto&& i : beg..end) {
+		once{
+			echo f"-_- {i}";
+		}
+		falan filan(i + 1);
+	}
 	if 2 + 2 == 4 { // require curly brackets
 		echo "evet.";
 	}
@@ -270,7 +287,7 @@ auto main() -> int {
 	func(""s);
 	$rep[31:30 + math.pi] func(__n__);
 	return 0;
-}
+};
 int operator filan(int v) {
 	cout << "oyle iste: " << v << '\n';
 	return v + 42;
@@ -290,7 +307,6 @@ auto main() -> int {
 // OUTPUT:
 $201 [for] cannot find correct def
 $201 [for] cannot find correct def
-$102 [ echo] operator defined multi times
 $101 [math.pi] macro defined multi times
 $201 [for] cannot find correct def
 $201 [if] cannot find correct def
@@ -341,7 +357,7 @@ namespace __cxx_rule{
 #undef M_PI
 #endif
 #define M_PI 3.14
-auto main()->int{
+auto main()->int {
         ([&](){
                 if (true or false){
                         return "selm";
@@ -349,16 +365,15 @@ auto main()->int{
                 return "mrb";
         }
         ());
-        std::pmr::vector<int>l{
-                1,1,1,5,6,1,8 }
-        ;
+        std::pmr::vector<int >l{
+                1,1,1,5,6,1,8 };
         (for (auto &i:l)if (i==1){
                 i=31;
         }
         );
         cout<<1<<' '<<selam<<' '<<"meaba";
-        (float(1+2+3+4+5)/(float)5);
-        auto r_list=([&]()->auto{
+        (float (1+2+3+4+5)/(float )5);
+        auto r_list=([&]()->auto {
                 vector<decltype (2)>v;
                 for (auto i=2;
                 i!=5;
@@ -369,47 +384,51 @@ auto main()->int{
         cerr<<"error"<<':'<<"check this after"<<' '<<"line:"<<' '<<5;
         std::string hello="Hello";
         enum class log_type{
-                info,error,warning }
-        ;
+                info,error,warning };
         std::cerr<<format("{}:{}",enum_name(log_type::error),"oops..")<<'\n';
         ;
         cout<<'`hata` "falan"'<<'\n';
         std::cout<<format("{}, World.",hello+format("R"__cxx_rule(wow {}.)__cxx_rule"",3.14))<<'\n';
         std::string falanke=R"__cxx_rule(C:\wow\amazing)__cxx_rule";
         int beg=10,end=21;
-        for (auto &&i:__cxx_rule::__dotdot_op(beg,end))__cxx_rule::__operator_falan(__cxx_rule::__operator_filan((i+1)));
+        for (auto &&i:__cxx_rule::__dotdot_op(beg,end)){
+                {
+                        static const auto Once=[&](){
+                                __cxx_rule::__operator_echo(f"-_- {i}");
+                                return nullptr;
+                        }
+                        ();
+                }
+                __cxx_rule::__operator_filan((i+1));
+        }
         if (2+2==4){
                 __cxx_rule::__operator_echo("evet.");
         }
-        const auto func=[&](int wow)->auto{
+        const auto func=[&](int wow)->auto {
                 if (true or false){
                         cout<<R"__cxx_rule(falanke filanke\n)__cxx_rule";
                 }
-                const auto func=[&]()->auto{
-                        {
-                                "wow";
-                                "wow";
-                                "wow";
-                                "wow";
-                                return 31;
-                        }
-                }
-                ;
-                ;
-                constexpr auto num=52;
-                const auto func=[&](std::string){
-                }
-                ;
-                func("" s);
-                func(31);
-                func(32);
-                func(33);
-                return 0;
+                const auto func=[&]()->int {
+                        "wow";
+                        "wow";
+                        "wow";
+                        "wow";
+                        return 31;
+                };
+        };
+        constexpr auto num=52;
+        const auto func=[&](std::string){
+        };
+        func("" s);
+        func(31);
+        func(32);
+        func(33);
+        return 0;
+};
+namespace __cxx_rule{
+        int __operator_filan(int v){
+                cout<<"oyle iste: "<<v<<'\n';
+                return v+"did you mean 'everthing'??";
         }
-        namespace __cxx_rule{
-                int __operator_filan(int v){
-                        cout<<"oyle iste: "<<v<<'\n';
-                        return v+"did you mean 'everthing'??";
-                }
-                }
+}
 ```
