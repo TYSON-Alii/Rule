@@ -32,14 +32,14 @@ $def print[...]{ cout << [... << ' ' << ] }
 $def for[it_name:list]{ for (auto it_name = list.begin(); it_name != list.end(); it_name++) }
 $def list.map(list : find => make) { (for (auto& i : list) if i == find { i = make; }) }
 $def if<_if ? _con : _else> { ([&]() { if _con{ return _if; } return _else; }()) }
-$def range[start ..end, step]{
+$def range[start .. end, step]{
 	([&]()->auto {
 		vector<decltype(start)> v;
 		for (auto i = start; i != end; i += step) v.push_back(i);
 		return v;
 	}())
 }
-$def once[body] { {static const auto Once = [&]() { body; return nullptr; }(); } }
+$def once { { static const auto Once = [&]() { __arg__ return nullptr; }(); } }
 $macro self (*this)
 $macro var auto&
 $macro let const auto
@@ -67,5 +67,5 @@ $macro u32 std::uint32_t
 $macro u64 std::uint64_t
 $macro f32 float
 $macro f64 double
-$def list<T> { std::pmr::vector<T> }
+$macro list std::pmr::vector
 $macro ptr auto*
