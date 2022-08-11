@@ -36,6 +36,10 @@ auto main() -> int {
 	print[1, selam, "meaba"];
 	average(1, 2, 3, 4, 5);
 	r_list := range[2 .. 5, 1];
+	&ref_list := r_list;
+	[r,g,b] := my_color;
+	for (let i : @[1,4,1,5,7])
+		echo i;
 	err<"error":"check this after", "line:", 5>;
 	str hello = "Hello";
 	enum class log_type { info, error, warning };
@@ -44,7 +48,7 @@ auto main() -> int {
 	std::cout << f"{hello+f`wow {math.pi}.`}, World." << '\n';
 	str falanke = `C:\wow\amazing`;
 	int beg = 10, end = 21;
-	for (auto&& i : beg..end) {
+	for (const&& i : beg..end) {
 		once{
 			echo f"-_- {i}";
 		}
@@ -64,6 +68,9 @@ auto main() -> int {
 		}
 	}
 	// const num = 52;
+	const* nptr = new int(2);
+	const[r,g,b] = rgb_color;
+	const&[key,val] = my_pair;
 	constexpr num = 52;
 	const func = [&](str) { /* falan filan */ };
 	func(""s);
