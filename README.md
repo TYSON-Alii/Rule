@@ -12,7 +12,7 @@ features;
 - [x] [$rep, $rep[beg:end]](https://github.com/TYSON-Alii/Rule#reprep-rewrites-n-times)
 - [x] [safe macros ($macro)](https://github.com/TYSON-Alii/Rule#macro-safe-macros)
 - [ ] local macros
-- [x] @\[ ] brackets, convert initializer list to vector
+- [x] [@[ ] brackets, convert initializer list to vector](https://github.com/Tyson-alii/Rule#auto-type-variable-definition-with--operator)
 - [x] [removing parent bracket requiment](https://github.com/TYSON-Alii/Rule#no-parent-bracket-requiremnt)
 - [ ] => operator for lambda
 - [x] [auto type declaration with := operator](https://github.com/TYSON-Alii/Rule#auto-type-variable-definition-with--operator)
