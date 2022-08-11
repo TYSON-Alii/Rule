@@ -1,26 +1,26 @@
 ### Rule [C++ Parser, Re-Writer]
 features;
 - [x] [f-string literal](#f-string-literal-string-formatting)
-- [x] [.. operator](https://github.com/TYSON-Alii/Rule#-operator-range-operator)
-- [x] [auto specifier after const/constexpr keyword](https://github.com/TYSON-Alii/Rule#auto-specifier-after-constconstexpr-keyword)
-- [x] [#redefine](https://github.com/TYSON-Alii/Rule#redefine-safer-macro-definition)
+- [x] [.. operator](#-operator-range-operator)
+- [x] [auto specifier after const/constexpr keyword](#auto-specifier-after-constconstexpr-keyword)
+- [x] [#redefine](#redefine-safer-macro-definition)
 - [ ] #indefine
 - [ ] @ operator
 - [ ] #wdefine (weak define)
-- [x] [\` \` string literal](https://github.com/TYSON-Alii/Rule#--string-literal-raw-string-literal)
-- [x] [defs](https://github.com/TYSON-Alii/Rule#defs-safe-functional-and-overloadable-macros)
-- [x] [$rep, $rep[beg:end]](https://github.com/TYSON-Alii/Rule#reprep-rewrites-n-times)
-- [x] [safe macros ($macro)](https://github.com/TYSON-Alii/Rule#macro-safe-macros)
+- [x] [\` \` string literal](#--string-literal-raw-string-literal)
+- [x] [defs](#defs-safe-functional-and-overloadable-macros)
+- [x] [$rep, $rep[beg:end]](#reprep-rewrites-n-times)
+- [x] [safe macros ($macro)](#macro-safe-macros)
 - [ ] local macros
-- [x] [@[ ] brackets, convert initializer list to vector](https://github.com/Tyson-alii/Rule#auto-type-variable-definition-with--operator)
-- [x] [removing parent bracket requiment](https://github.com/TYSON-Alii/Rule#no-parent-bracket-requiremnt)
+- [x] [@[ ] brackets, convert initializer list to vector](#auto-type-variable-definition-with--operator)
+- [x] [removing parent bracket requiment](#no-parent-bracket-requiremnt)
 - [ ] => operator for lambda
-- [x] [auto type declaration with := operator](https://github.com/TYSON-Alii/Rule#auto-type-variable-definition-with--operator)
+- [x] [auto type declaration with := operator](#auto-type-variable-definition-with--operator)
 - [ ] infile keyword
-- [x] [$operator](https://github.com/TYSON-Alii/Rule#operator-create-unary-operator)
+- [x] [$operator](h#operator-create-unary-operator)
 - [ ] typespace
 - [ ] : and . namespace operators (std:cout or std.cout)
-- [x] [nested functions](https://github.com/TYSON-Alii/Rule#nested-functions)
+- [x] [nested functions](#nested-functions)
 - [ ] $try, $catch, $endtry
 - [ ] function, variable aliasing
 ## Docs
