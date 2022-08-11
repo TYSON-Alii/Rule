@@ -12,6 +12,7 @@ features;
 - [x] [$rep, $rep[beg:end]](https://github.com/TYSON-Alii/Rule#reprep-rewrites-n-times)
 - [x] [safe macros ($macro)](https://github.com/TYSON-Alii/Rule#macro-safe-macros)
 - [ ] local macros
+- [x] @\[ ] brackets, convert initializer list to vector
 - [x] [removing parent bracket requiment](https://github.com/TYSON-Alii/Rule#no-parent-bracket-requiremnt)
 - [ ] => operator for lambda
 - [x] [auto type declaration with := operator](https://github.com/TYSON-Alii/Rule#auto-type-variable-definition-with--operator)
@@ -44,6 +45,10 @@ for (auto&& i : 2..10)
 #### \` \` string literal _[raw string literal]_
 ```d
 `C:\throw\no\error\`
+`this
+is
+multi line
+`
 ```
 #### $rep/$rep[:] _[rewrites n times]_
 ```cpp
@@ -56,13 +61,14 @@ $rep[12:14] cout << "num: " <<  __n__;
 ```
 #### defs _[safe, functional and overloadable macros]_
 
-* 5 brackets options '(), <>, [], [[ ]], <[ ]>'
+* 6 brackets options '(), <>, [], [[ ]], <[ ]>, <| |>'
 ```cpp
 $def foo( /*args*/ ) { /*your code here*/ }
 $def foo< > { } // accept
 $def foo[ ] { } // accept
 $def foo[[ ]] { } // accept
 $def foo<[ ]> { } // accept
+$def foo<| |> { } // accept
 ```
 * 6 separator options ',', ':', ';', '=>', '..' and '?' 
 ```cpp
@@ -77,6 +83,9 @@ $def bar<[arg1..arg2:arg3]> { }
 $def foo"arg" { "arg" } // same, $def foo"" { __arg__ }
 $def foo'' { __arg__ } // accept
 $def foo`` { } // accept
+// some functions
+$def foo"arg" { __arg_no_pp__ }
+$def foo"arg" { __arg_eval__ }
 ```
 * block style
 ```cpp
@@ -173,6 +182,9 @@ $macro math.pi 3.1415 // also math::pi and math->pi accept
 ```js
 // const num = 52;
 constexpr num = 52;
+const* nptr = new int(2);
+const[r,g,b] = rgb_color;
+const&[key,val] = my_pair;
 const func = [&](str) { /* falan filan */ };
 func(""s);
 ```
@@ -185,10 +197,19 @@ while true {
 
 }
 ```
+#### @\[ ] _[convert initializer list to std::vector]_
+```cpp
+for (const& i : @[1,4,1,5,7])
+	echo i;
+ ```
 #### auto type variable definition with := operator
 ```cpp
 range_list := range[2 .. 5, 1];
 // same as 'auto range_list = range[2 .. 5, 1];'
+&ref_rlist := range_list;
+&&move_rlist := range_list;
+*ptr_rlist :=  range_list;
+&[key, value] := my_pair;
 ```
 #### $operator _[create unary operator]_
 ```cpp
@@ -254,6 +275,10 @@ auto main() -> int {
 	print[1, selam, "meaba"];
 	average(1, 2, 3, 4, 5);
 	r_list := range[2 .. 5, 1];
+	&ref_list := r_list;
+	[r,g,b] := my_color;
+	for (let i : @[1,4,1,5,7])
+		echo i;
 	err<"error":"check this after", "line:", 5>;
 	str hello = "Hello";
 	enum class log_type { info, error, warning };
@@ -262,7 +287,7 @@ auto main() -> int {
 	std::cout << f"{hello+f`wow {math.pi}.`}, World." << '\n';
 	str falanke = `C:\wow\amazing`;
 	int beg = 10, end = 21;
-	for (auto&& i : beg..end) {
+	for (const&& i : beg..end) {
 		once{
 			echo f"-_- {i}";
 		}
@@ -282,6 +307,9 @@ auto main() -> int {
 		}
 	}
 	// const num = 52;
+	const* nptr = new int(2);
+	const[r,g,b] = rgb_color;
+	const&[key,val] = my_pair;
 	constexpr num = 52;
 	const func = [&](str) { /* falan filan */ };
 	func(""s);
@@ -308,6 +336,7 @@ auto main() -> int {
 $201 [for] cannot find correct def
 $201 [for] cannot find correct def
 $101 [math.pi] macro defined multi times
+$201 [for] cannot find correct def
 $201 [for] cannot find correct def
 $201 [if] cannot find correct def
 $201 [if] cannot find correct def
@@ -381,6 +410,11 @@ auto main()->int {
                 return v;
         }
         ());
+        auto &ref_list=r_list;
+        auto [r,g,b]=my_color;
+        for (const auto i:std::vector{
+                1,4,1,5,7 }
+        )__cxx_rule::__operator_echo(i);
         cerr<<"error"<<':'<<"check this after"<<' '<<"line:"<<' '<<5;
         std::string hello="Hello";
         enum class log_type{
@@ -388,10 +422,10 @@ auto main()->int {
         std::cerr<<format("{}:{}",enum_name(log_type::error),"oops..")<<'\n';
         ;
         cout<<'`hata` "falan"'<<'\n';
-        std::cout<<format("{}, World.",hello+format("R"__cxx_rule(wow {}.)__cxx_rule"",3.14))<<'\n';
+        std::cout<<format("{}, World.",hello+format(,3.14))<<'\n';
         std::string falanke=R"__cxx_rule(C:\wow\amazing)__cxx_rule";
         int beg=10,end=21;
-        for (auto &&i:__cxx_rule::__dotdot_op(beg,end)){
+        for (const auto &&i:__cxx_rule::__dotdot_op(beg,end)){
                 {
                         static const auto Once=[&](){
                                 __cxx_rule::__operator_echo(f"-_- {i}");
@@ -416,6 +450,9 @@ auto main()->int {
                         return 31;
                 };
         };
+        const auto *nptr=new int (2);
+        const auto [r,g,b]=rgb_color;
+        const auto &[key,val]=my_pair;
         constexpr auto num=52;
         const auto func=[&](std::string){
         };
