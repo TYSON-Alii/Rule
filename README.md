@@ -1,6 +1,6 @@
 ### Rule [C++ Parser, Re-Writer]
 features;
-- [x] [f-string literal](https://github.com/TYSON-Alii/Rule#f-string-literal-string-formatting)
+- [x] [f-string literal](#f-string-literal-string-formatting)
 - [x] [.. operator](https://github.com/TYSON-Alii/Rule#-operator-range-operator)
 - [x] [auto specifier after const/constexpr keyword](https://github.com/TYSON-Alii/Rule#auto-specifier-after-constconstexpr-keyword)
 - [x] [#redefine](https://github.com/TYSON-Alii/Rule#redefine-safer-macro-definition)
