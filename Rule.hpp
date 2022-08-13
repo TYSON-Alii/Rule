@@ -87,9 +87,10 @@ public:
 	list<str> keywords{ "fn", "int", "bool", "float", "double", "char", "auto", "return", "break", "case", "catch", "class", "concept", "continue", "decltype", "default", "delete", "do", "else", "if", "enum", "export", "extern", "for", "goto", "namespace", "new", "noexcept", "operator", "private", "public", "protected", "requires", "sizeof", "struct", "switch", "template", "throw", "try", "typedef", "typename", "union", "while" };
 	const list<str> rbracket{ "if", "while" };
 	list<str> ops{
-		"{", "}","[", "]", "(", ")", "<", ">", "=", "+", "-", "/", "*", "%", "&", "|", "^", "~", ".", ":", ",", ";", "?", "@",
-		"==", "!=", ">=", "<=", "<<", ">>", "--", "++", "&&", "||", ":=", "+=", "-=", "*=", "/=", "%=", "^=", "|=", "&=", "~=", "^^", "->", "=>", "::", "..", "[[", "]]", "<[", "]>", "<|", "|>",
-		"<=>", "<<=", ">>=", "...", "===", "..=", "^^=", "<->"
+		"{", "}","[", "]", "(", ")", "<", ">", "=", "+", "-", "/", "*", "%", "&", "|", "^", "~", ".", ":", ",", ";", "?", "@", "==", "!=",
+		">=", "<=", "<<", ">>", "--", "++", "&&", "||", ":=", "+=", "-=", "*=", "/=", "%=", "^=", "|=", "&=", "~=", ".=",
+		"^^", "->", "=>", "~>", "::", "..", "[[", "]]", "<[", "]>", "<|", "|>", ":>", "<:", ">:", ":<", "<$>",
+		"<=>", "<<=", ">>=", "...", "===", "..=", "^^=", "<->", "<~>", ":::", "=:="
 	};
 	list<OP> user_ops;
 	list<Macro> macros;
@@ -104,18 +105,16 @@ public:
 		lit_type("/*","*/", {'\0','\0'}, 0, 0, 1, 1, 0),
 		lit_type("#","\n", {'\0','\0'}, 1, 0, 1, 0, 0),
 		lit_type("$def","{", {'\0','\0'}, 0, 0, 1, 0, 0),
-		lit_type("$if"," ", {'\0','\0'}, 0, 0, 1, 0, 0),
 		lit_type("$","\n", {'\0','\0'}, 1, 0, 1, 0, 0),
 		lit_type("`","`", {'\0','\0'}, 0, 0, 1, 1, 1),
 		lit_type("f\"","\"", {'{','}'}, 1, 1, 1, 1, 1),
 		lit_type("f`","`", {'{','}'}, 0, 0, 1, 1, 1),
-		lit_type("R\"","\"", {'\0','\0'}, 1, 1, 1, 1, 1),
 		lit_type("@[","]", {'\0','\0'}, 0, 0, 1, 1, 0),
 		// maybe later
 		// lit_pair("/+","+/", {'\0','\0'})
 	};
-	list<str> def_seps{ ",", ":", ";", "=>", "?", ".." };
-	list<bracket_t> def_brackets{ {"(",")"}, {"[","]"}, {"<",">"}, {"[[","]]"}, {"<[","]>"}, {"<|","|>"}};
+	list<str> def_seps{ ",", ":", ";", "=>", "~>", "?", "..", "<->", "<~>", "<=>", ":::", "=:=", "<$>"};
+	list<bracket_t> def_brackets{ {"(",")"}, {"[","]"}, {"<",">"}, {"[[","]]"}, {"<[","]>"}, {"<|","|>"}, {":>", "<:"}, {":<", ">:"}, {"<:", ":>"}};
 	Rule() = default;
 	Rule(const str s, load_type lt) {
 		if (lt == from_str) {
@@ -135,10 +134,18 @@ public:
 		defs = parent->defs;
 		wLevel = parent->wLevel;
 		user_ops = parent->user_ops;
+		def_seps = parent->def_seps;
+		def_brackets = parent->def_brackets;
+		lits = parent->lits;
+		keywords = parent->keywords;
 		parse();
 		parent->macros = macros;
 		parent->defs = defs;
 		parent->user_ops = user_ops;
+		parent->def_seps = def_seps;
+		parent->def_brackets = def_brackets;
+		parent->lits = lits;
+		parent->keywords = keywords;
 	};
 	str parse() {
 		let go_end = [&](auto& it, auto& val, let& ch, let& end) {
@@ -945,9 +952,7 @@ protected:
 	virtual bool user_loop(list<Word>::iterator& it /*current iterator*/, list<Word>& split, list<Word>& temp_split) { return false; }
 	virtual void user_init() {}
 	const uint max_wLevel = 3;
-	uint wLevel = max_wLevel;
 	bool is_child = false;
-	uint meta_counter = 0;
 	const str& rule_space = "namespace __cxx_rule { ";
 	list<Word> split_code(const str& code) {
 		sort(ops.begin(), ops.end(), [](const str& first, const str& second) { return first.size() > second.size(); });
@@ -1143,5 +1148,8 @@ protected:
 		}
 		return splt;
 	}
+private:
+	uint wLevel = max_wLevel;
+	uint meta_counter = 0;
 };
 ostream& operator<<(ostream& os, const Rule& rule) { for (auto i : rule.split) { os << i << '\n'; }; return os; };
