@@ -12,8 +12,6 @@ $macro math.pi 4 // also math::pi and math->pi accepted
 $macro math.pi 3.14
 $macro 42 "did you mean 'everthing'??"
 
-// brackets ( ), [ ], < >, [[ ]], <[ ]>
-// separators ',', ':', ';', '=>', '?', '..'
 $def log[type:message]{
 	std::cerr << f"{enum_name(type)}:{message}" << '\n';
 }
@@ -40,7 +38,7 @@ auto main() -> int {
 	[r,g,b] := my_color;
 	for (let i : @[1,4,1,5,7])
 		echo i;
-	err<"error":"check this after", "line:", 5>;
+	err<"error" : "check this after", "line:", 5>;
 	str hello = "Hello";
 	enum class log_type { info, error, warning };
 	log[log_type::error : "oops.."];
