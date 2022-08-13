@@ -477,6 +477,7 @@ namespace __cxx_rule{
 ```cpp
 class myRule : public Rule {
 public:
+	using Rule::Rule; // require
 	myRule(const str& filename) {
 		parse(filename, Rule::from_file);
 	}
@@ -485,23 +486,53 @@ public:
 		auto lit = lit_type(
 			"/+", "+/",
 			false, // back slash
-			false, // new line error
-			true, // add /+
-			true, // add +/
-			false); // cannot be def
+			false); // new line error
 		lits.push_back(lit);
+		// create a operator
+		ops.push_back("+++");
 	}
-	bool user_loop(list<Word>::iterator& it, list<Word>& split, list<Word>& temp_split) {
+	bool user_loop(list<Word>::iterator& it, list<Word>& code_split, list<Word>& new_code) {
 		auto& i = *it; // current word
-		if (i.starts_with("/+") and i.ends_with("+/")) { // find literals
+		if (i.starts_with("/+") and i.ends_with("+/")) {
 			const str s = str(i.begin() + 2, i.end() - 2);
 			cout << "$ its a comment!! '" << i << "'\n";
 			// const auto eval = Rule(s, this); eval with parent Rule features;
 			const auto eval = split_code(s);
-			temp_split.insert(temp_split.end(), eval.begin(), eval.end());
+			new_code.insert(new_code.end(), eval.begin(), eval.end());
+			return true;
+		}
+		else if (i == "+++") {
+			const auto eval = split_code("+= 2");
+			new_code.insert(new_code.end(), eval.begin(), eval.end());
 			return true;
 		}
 		else return false;
 	}
 };
+auto main() -> int {
+	myRule cxx("test.vxx");
+	cout << cxx.afterCode;
+	return 0;
+}
+```
+in test.vxx
+```cpp
+int main() {
+	/+ "falanke filanke"; +/
+	int a = 1;
+	a+++;
+	echo "safsdfsdfa\n";
+}
+```
+output:
+```cpp
+...
+$ its a comment!! '/+ "falanke filanke"; +/'
+...
+int main(){
+        "falanke filanke";
+        int a=1;
+        a+=2;
+        __cxx_rule::__operator_echo("safsdfsdfa\n");
+}
 ```
