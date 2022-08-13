@@ -147,6 +147,19 @@ public:
 		parent->lits = lits;
 		parent->keywords = keywords;
 	};
+	str parse(const str& s, load_type lt) {
+		if (lt == from_str) {
+			code = s;
+		}
+		else {
+			const auto file = ifstream(s);
+			if (not file.is_open()) error<err::import_file_cannot_open>("file '{}' cannot open", s);
+			stringstream ss;
+			ss << file.rdbuf();
+			code = ss.str();
+		}
+		return parse();
+	}
 	str parse() {
 		let go_end = [&](auto& it, auto& val, let& ch, let& end) {
 			int bc = 0, cc = 0, sc = 0;
@@ -359,7 +372,7 @@ public:
 								error<err::def_argument_require_sep>("[{}] unexpected def argument {}", def.name, *itt);
 						c = !c;
 					}
-					if (def.args.back() == "...") {
+					if (not def.args.empty() and def.args.back() == "...") {
 						def.variadic = true;
 						def.args.pop_back();
 					}
@@ -950,10 +963,10 @@ public:
 	}
 protected:
 	virtual bool user_loop(list<Word>::iterator& it /*current iterator*/, list<Word>& split, list<Word>& temp_split) { return false; }
-	virtual void user_init() {}
+	virtual void user_init() {};
 	const uint max_wLevel = 3;
 	bool is_child = false;
-	const str& rule_space = "namespace __cxx_rule { ";
+	const str rule_space = "namespace __cxx_rule { ";
 	list<Word> split_code(const str& code) {
 		sort(ops.begin(), ops.end(), [](const str& first, const str& second) { return first.size() > second.size(); });
 		sort(lits.begin(), lits.end(), [](let& first, let& second) { return first.beg.size() > second.beg.size(); });
