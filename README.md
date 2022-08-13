@@ -1,5 +1,9 @@
 ### Rule [C++ Parser, Re-Writer]
-features;
+* [Features](#features)
+* [Docs](#Docs)
+* [Simple example](#Example)
+* [Write your own Rule (and create new features!)](#Write-your-own-rule)
+## features
 - [x] [f-string literal](#f-string-literal-string-formatting)
 - [x] [.. operator](#-operator-range-operator)
 - [x] [auto specifier after const/constexpr keyword](#auto-specifier-after-constconstexpr-keyword)
@@ -469,3 +473,33 @@ namespace __cxx_rule{
         }
 }
 ```
+## Write your own rule
+class myRule : public Rule {
+public:
+	myRule(const str& filename) {
+		parse(filename, Rule::from_file);
+	}
+	void user_init() {
+		// create a string literal
+		auto lit = lit_type(
+			"/+", "+/",
+			false, // back slash
+			false, // new line error
+			true, // add /+
+			true, // add +/
+			false); // cannot be def
+		lits.push_back(lit);
+	}
+	bool user_loop(list<Word>::iterator& it, list<Word>& split, list<Word>& temp_split) {
+		auto& i = *it; // current word
+		if (i.starts_with("/+") and i.ends_with("+/")) { // find literals
+			const str s = str(i.begin() + 2, i.end() - 2);
+			cout << "$ its a comment!! '" << i << "'\n";
+			// const auto eval = Rule(s, this); eval with parent Rule features;
+			const auto eval = split_code(s);
+			temp_split.insert(temp_split.end(), eval.begin(), eval.end());
+			return true;
+		}
+		else return false;
+	}
+};
