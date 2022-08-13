@@ -477,7 +477,6 @@ namespace __cxx_rule{
 ```cpp
 class myRule : public Rule {
 public:
-	using Rule::Rule; // require
 	myRule(const str& filename) {
 		parse(filename, Rule::from_file);
 	}
