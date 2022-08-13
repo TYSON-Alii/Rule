@@ -474,6 +474,7 @@ namespace __cxx_rule{
 }
 ```
 ## Write your own rule
+```cpp
 class myRule : public Rule {
 public:
 	myRule(const str& filename) {
@@ -503,3 +504,4 @@ public:
 		else return false;
 	}
 };
+```
