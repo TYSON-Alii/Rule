@@ -58,7 +58,7 @@ public:
 	};
 	struct lit_not_in { char beg, end; };
 	struct lit_type {
-		lit_type(const str _beg, const str _end, const lit_not_in _not_in, bool _bslash, bool _ln_problem, bool _add_beg, bool _add_end, bool _can_be_def = false) : beg(_beg), end(_end), not_in(_not_in), bslash(_bslash), ln_problem(_ln_problem), add_beg(_add_beg), add_end(_add_end), can_be_def(_can_be_def) { };
+		lit_type(const str _beg, const str _end, bool _bslash, bool _ln_problem, bool _add_beg = true, bool _add_end = true, bool _can_be_def = false, const lit_not_in _not_in = {'\0','\0'}) : beg(_beg), end(_end), not_in(_not_in), bslash(_bslash), ln_problem(_ln_problem), add_beg(_add_beg), add_end(_add_end), can_be_def(_can_be_def) { };
 		str beg, end;
 		lit_not_in not_in;
 		bool bslash, ln_problem, add_beg, add_end, can_be_def;
@@ -96,20 +96,20 @@ public:
 	list<Macro> macros;
 	list<Def> defs;
 	list<lit_type> lits{
-		lit_type("\"","\"", {'\0','\0'}, 1, 1, 1, 1, 1),
-		lit_type("L\"","\"", {'\0','\0'}, 1, 1, 1, 1, 1),
-		lit_type("u8\"","\"", {'\0','\0'}, 1, 1, 1, 1, 1),
-		lit_type("u16\"","\"", {'\0','\0'}, 1, 1, 1, 1, 1),
-		lit_type("'","'", {'\0','\0'}, 1, 1, 1, 1, 1),
-		lit_type("//","\n", {'\0','\0'}, 1, 0, 1, 0, 0),
-		lit_type("/*","*/", {'\0','\0'}, 0, 0, 1, 1, 0),
-		lit_type("#","\n", {'\0','\0'}, 1, 0, 1, 0, 0),
-		lit_type("$def","{", {'\0','\0'}, 0, 0, 1, 0, 0),
-		lit_type("$","\n", {'\0','\0'}, 1, 0, 1, 0, 0),
-		lit_type("`","`", {'\0','\0'}, 0, 0, 1, 1, 1),
-		lit_type("f\"","\"", {'{','}'}, 1, 1, 1, 1, 1),
-		lit_type("f`","`", {'{','}'}, 0, 0, 1, 1, 1),
-		lit_type("@[","]", {'\0','\0'}, 0, 0, 1, 1, 0),
+		lit_type("\"","\"", 1, 1, 1, 1, 1, {'\0','\0'}),
+		lit_type("L\"","\"", 1, 1, 1, 1, 1, {'\0','\0'}),
+		lit_type("u8\"","\"", 1, 1, 1, 1, 1, {'\0','\0'}),
+		lit_type("u16\"","\"", 1, 1, 1, 1, 1, {'\0','\0'}),
+		lit_type("'","'", 1, 1, 1, 1, 1, {'\0','\0'}),
+		lit_type("//","\n", 1, 0, 1, 0, 0, {'\0','\0'}),
+		lit_type("/*","*/", 0, 0, 1, 1, 0, {'\0','\0'}),
+		lit_type("#","\n", 1, 0, 1, 0, 0, {'\0','\0'}),
+		lit_type("$def","{", 0, 0, 1, 0, 0, {'\0','\0'}),
+		lit_type("$","\n", 1, 0, 1, 0, 0, {'\0','\0'}),
+		lit_type("`","`", 0, 0, 1, 1, 1, {'\0','\0'}),
+		lit_type("f\"","\"", 1, 1, 1, 1, 1, {'{','}'}),
+		lit_type("f`","`", 0, 0, 1, 1, 1, {'{','}'}),
+		lit_type("@[","]", 0, 0, 1, 1, 0, {'\0','\0'})
 		// maybe later
 		// lit_pair("/+","+/", {'\0','\0'})
 	};
@@ -129,7 +129,7 @@ public:
 		}
 		parse();
 	};
-	Rule(const str& _code, Rule* parent) : code(_code), is_child(true) {
+	Rule(const str& _code, Rule* parent) : code(_code), is_child(true), utility_hxx(false) {
 		macros = parent->macros;
 		defs = parent->defs;
 		wLevel = parent->wLevel;
@@ -139,6 +139,25 @@ public:
 		lits = parent->lits;
 		keywords = parent->keywords;
 		parse();
+		parent->macros = macros;
+		parent->defs = defs;
+		parent->user_ops = user_ops;
+		parent->def_seps = def_seps;
+		parent->def_brackets = def_brackets;
+		parent->lits = lits;
+		parent->keywords = keywords;
+	};
+	Rule(const list<Word> _split, Rule* parent) : is_child(true), utility_hxx(false) {
+		macros = parent->macros;
+		defs = parent->defs;
+		wLevel = parent->wLevel;
+		user_ops = parent->user_ops;
+		def_seps = parent->def_seps;
+		def_brackets = parent->def_brackets;
+		lits = parent->lits;
+		keywords = parent->keywords;
+		split = _split;
+		parse(false);
 		parent->macros = macros;
 		parent->defs = defs;
 		parent->user_ops = user_ops;
@@ -160,27 +179,35 @@ public:
 		}
 		return parse();
 	}
-	str parse() {
+	str parse(const bool _split_code = true) {
 		let go_end = [&](auto& it, auto& val, let& ch, let& end) {
 			int bc = 0, cc = 0, sc = 0;
 			while (!(bc == 0 and cc == 0 and sc == 0 and *it == ch)) {
-				if (*it == "(") bc++;
-				else if (*it == ")") bc--;
-				else if (*it == "{") cc++;
-				else if (*it == "}") cc--;
-				else if (*it == "[") sc++;
-				else if (*it == "]") sc--;
+				if (*it == "(") bc++; else if (*it == ")") bc--;
+				else if (*it == "{") cc++; else if (*it == "}") cc--;
+				else if (*it == "[") sc++; else if (*it == "]") sc--;
 				val += *it;
 				if (it + 1 == end) break;
 				if (*it == "{" or (*it == "}" and *(it + 1) != ";") or *(it + 1) == "}" or *it == ";" or it->type != word::op and (it + 1)->type != word::op or it->type == word::keyw or it->type == word::token) val += ' ';
 				it++;
 			};
 		};
+		let go_endl = [&](auto& it, auto& val_list, let& ch, let& end) {
+			int bc = 0, cc = 0, sc = 0;
+			while (!(bc == 0 and cc == 0 and sc == 0 and *it == ch)) {
+				if (*it == "(") bc++; else if (*it == ")") bc--;
+				else if (*it == "{") cc++; else if (*it == "}") cc--;
+				else if (*it == "[") sc++; else if (*it == "]") sc--;
+				val_list.push_back(*it);
+				if (it + 1 == end) break;
+				it++;
+			};
+		};
 		user_init();
-		if (not is_child) {
+		if (utility_hxx) {
 			code = "$import __cxx_utility.hxx\n"s + code;
 		}
-		split = split_code(code);
+		if (_split_code) split = split_code(code);
 		list<Word> temp_split;
 		str temp_str;
 		forx (it, split) {
@@ -189,15 +216,9 @@ public:
 			if (i.starts_with("//") or i.starts_with("/*")) continue;
 			else if (it1 != split.end()) {
 				auto& i1 = *it1;
-				if (i == "::" or i == "->" or i == ".") {
-					if (it != split.begin() and (it - 1)->type == word::no)
-						temp_split.back() += i + i1, it++;
-					else
-						temp_split.push_back(i);
-				}
-				else if (i == "operator" and (i1.type == word::op or (i1.front() == '"' and i1.back() == '"'))) {
-					temp_split.push_back(i + i1);
-					it++;
+				if ( i.type == word::op and (i == "::" or i == "->" or i == ".") and
+					(i == "::" or (it != split.begin() and (it - 1)->type == word::no))) {
+					temp_split.back() += i + i1, it++;
 				}
 				else
 					temp_split.push_back(i);
@@ -677,6 +698,30 @@ public:
 				temp_split.insert(temp_split.end(), splt.begin(), splt.end());
 				temp_split.push_back(Word("}", word::op));
 			}
+			else if (i == "@") {
+				if (it1 != split.end() and *it1 == "<") {
+					it++;
+					list<Word> val, type{ *it };
+					it++;
+					go_endl(it, type, ">", split.end());
+					it++;
+					if (*it == "[") {
+						it++;
+						go_endl(it, val, "]", split.end());
+						val.pop_back();
+						let tsplt = Rule(type, this).split;
+						let vsplt = Rule(val, this).split;
+						temp_split.push_back(Word("std::vector"));
+						temp_split.insert(temp_split.end(), vsplt.begin(), vsplt.end());
+						temp_split.push_back(Word("{", word::op));
+						temp_split.insert(temp_split.end(), tsplt.begin(), tsplt.end());
+						temp_split.push_back(Word("}", word::op));
+					}
+					else {
+						error<err::user_error>("its a error..");
+					}
+				}
+			}
 			/** later
 			else if (i == "[") {
 				if (it != split.begin() and (it - 1)->type == word::op and *(it+1) != "...") {
@@ -703,7 +748,7 @@ public:
 			}
 			*/
 			else if (i == "const" or i == "constexpr") {
-				if (it1->type == word::no and (*(it + 2) == "="  or *(it + 2) == "(" or *(it + 2) == "{")) {
+				if (it1->type == word::no and (it + 2 != split.end() and (it+2)->type == word::op and (*(it + 2) == "=" or *(it + 2) == "(" or *(it + 2) == "{" or *(it + 2) == ","))) {
 					temp_split.push_back(i);
 					temp_split.push_back(Word("auto", word::keyw));
 					temp_split.push_back(Word(*it1));
@@ -795,8 +840,48 @@ public:
 			}
 			else if (i == "..") {
 				temp_split.pop_back();
-				temp_split.push_back("__cxx_rule::__dotdot_op("s + *(it - 1) + ',' + *(it + 1) + ')');
-				it++;
+				list<Word> v1, v2;
+				let cit = it;
+				if (*(it - 1) == ")") {
+					it--;
+					v1.push_back(*it);
+					temp_split.pop_back();
+					it--;
+					int bc = 0, cc = 0, sc = 0;
+					while (!(bc == 0 and cc == 0 and sc == 0 and *it == "(")) {
+						if (*it == "(") bc++;
+						else if (*it == ")") bc--;
+						else if (*it == "{") cc++;
+						else if (*it == "}") cc--;
+						else if (*it == "[") sc++;
+						else if (*it == "]") sc--;
+						v1.insert(v1.begin(), * it);
+						if (it - 1 == split.begin()) break;
+						it--;
+						temp_split.pop_back();
+					}
+					v1.insert(v1.begin(), *it);
+				}
+				else
+					v1.push_back(*(it-1));
+				it = cit;
+				if (*(it + 1) == "(") {
+					it++;
+					v2.push_back(*it);
+					it++;
+					go_endl(it, v2, ")", split.end());
+					v2.push_back(*it);
+				}
+				else
+					v2.push_back(*(it + 1));
+				temp_split.push_back("__cxx_rule::__dotdot_op");
+				temp_split.push_back(Word("(", word::op));
+				let splt1 = Rule(v1, this).split;
+				temp_split.insert(temp_split.end(), splt1.begin(), splt1.end());
+				temp_split.push_back(Word(",", word::op));
+				let splt2 = Rule(v2, this).split;
+				temp_split.insert(temp_split.end(), splt2.begin(), splt2.end());
+				temp_split.push_back(Word(")", word::op));
 			}
 			/*
 			else if (i == "operator" and is_in(*it1, user_ops)) {
@@ -965,7 +1050,7 @@ protected:
 	virtual bool user_loop(list<Word>::iterator& it /*current iterator*/, list<Word>& split, list<Word>& temp_split) { return false; }
 	virtual void user_init() {};
 	const uint max_wLevel = 3;
-	bool is_child = false;
+	bool is_child = false, utility_hxx = true;
 	const str rule_space = "namespace __cxx_rule { ";
 	list<Word> split_code(const str& code) {
 		sort(ops.begin(), ops.end(), [](const str& first, const str& second) { return first.size() > second.size(); });
