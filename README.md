@@ -203,6 +203,7 @@ while true {
 ```
 #### @\[ ] _[convert initializer list to std::vector]_
 ```cpp
+@<bool>[0,0,1,1,1,0,1];
 for (const& i : @[1,4,1,5,7])
 	echo i;
  ```
