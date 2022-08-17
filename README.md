@@ -479,6 +479,7 @@ namespace __cxx_rule{
 class myRule : public Rule {
 public:
 	myRule(const str& filename) {
+		utility_hxx = true;
 		parse(filename, Rule::from_file);
 	}
 	void user_init() {
@@ -491,19 +492,19 @@ public:
 		// create a operator
 		ops.push_back("+++");
 	}
-	bool user_loop(list<Word>::iterator& it, list<Word>& code_split, list<Word>& new_code) {
+	bool user_loop(list<Word>::iterator& it, list<Word>& code_split, list<Word>& new_split) {
 		auto& i = *it; // current word
 		if (i.starts_with("/+") and i.ends_with("+/")) {
 			const str s = str(i.begin() + 2, i.end() - 2);
 			cout << "$ its a comment!! '" << i << "'\n";
-			// const auto eval = Rule(s, this); eval with parent Rule features;
+			// const auto eval = Rule(s, this); eval with Rule features;
 			const auto eval = split_code(s);
-			new_code.insert(new_code.end(), eval.begin(), eval.end());
+			new_split.insert(new_split.end(), eval.begin(), eval.end());
 			return true;
 		}
 		else if (i == "+++") {
 			const auto eval = split_code("+= 2");
-			new_code.insert(new_code.end(), eval.begin(), eval.end());
+			new_split.insert(new_split.end(), eval.begin(), eval.end());
 			return true;
 		}
 		else return false;
@@ -521,7 +522,7 @@ int main() {
 	/+ "falanke filanke"; +/
 	int a = 1;
 	a+++;
-	echo "safsdfsdfa\n";
+	echo a;
 }
 ```
 output:
