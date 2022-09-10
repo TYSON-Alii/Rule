@@ -22,11 +22,15 @@ $def average(...) { (float([... +]) / (float)__arg_count__) }
 $def err<err_type:first_mes, ...> {
 	cerr << err_type << ':' << first_mes << ' ' << [... << ' ' <<]
 }
+#define stringZ(arg) #arg
 $def log'arg' { // that's signle line, log` ` support multi line
-	cout << 'arg' << '\n'
-	// same, cout << __arg__ << '\n'
+	cout << stringZ(__arg_no_pp__) << '\n'
 }
-auto main() -> int {
+const func() -> bool {
+	return true;
+}
+const main() -> int {
+	std.size_t i = 0;
 	if<"selm" ? true or false : "mrb">;
 	// comment
 	list<int> l{ 1,1,1,5,6,1,8 };
