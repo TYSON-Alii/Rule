@@ -21,9 +21,9 @@
 - [ ] => operator for lambda
 - [x] [auto type declaration with := operator](#auto-type-variable-definition-with--operator)
 - [ ] infile keyword
-- [x] [$operator](h#operator-create-unary-operator)
+- [x] [$operator](#operator-create-unary-operator)
 - [ ] typespace
-- [ ] : and . namespace operators (std:cout or std.cout)
+- [x] [: and . namespace operators (std:cout or std.cout)](#-and--namespace-operators)
 - [x] [nested functions](#nested-functions)
 - [ ] $try, $catch, $endtry
 - [ ] function, variable aliasing
@@ -53,6 +53,14 @@ for (auto&& i : 2..10)
 is
 multi line
 `
+```
+#### : and . namespace operators
+```cpp
+$nspace std
+std.cout << 5;
+std:vector<int> vec;
+$nspace pmr
+std::pmr.string str;
 ```
 #### $rep/$rep[:] _[rewrites n times]_
 ```cpp
