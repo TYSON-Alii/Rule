@@ -73,7 +73,7 @@ $rep[12:14] cout << "num: " <<  __n__;
 ```
 #### defs _[safe, functional and overloadable macros]_
 
-* 6 brackets options '(), <>, [], [[ ]], <[ ]>, <| |>'
+* 9 brackets options '( ), [ ], < >, [[ ]], <[ ]>, <| |>, :> <:, :< >:, <: :>'
 ```cpp
 $def foo( /*args*/ ) { /*your code here*/ }
 $def foo< > { } // accept
@@ -82,7 +82,7 @@ $def foo[[ ]] { } // accept
 $def foo<[ ]> { } // accept
 $def foo<| |> { } // accept
 ```
-* 6 separator options ',', ':', ';', '=>', '..' and '?' 
+* 12 separator options ",", ":", ";", "=>", "~>", "?", "..", "<->", "<~>", "<=>", "=:=", "<$>"
 ```cpp
 $def bar(arg1,arg2:arg3) { }
 $def bar<arg1:arg2> { }
