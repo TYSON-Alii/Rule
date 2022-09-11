@@ -208,6 +208,10 @@ if true or false {
 while true {
 
 }
+// single line
+if (true or false):
+	pass;
+while (true or false): pass;
 ```
 #### @\[ ] _[convert initializer list to std::vector]_
 ```cpp
