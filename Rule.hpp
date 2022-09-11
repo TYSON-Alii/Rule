@@ -213,14 +213,18 @@ public:
 		if (_split_code) split = split_code(code);
 		list<Word> temp_split;
 		str temp_str;
+		list<str> sprefixs = { "s" };
 		forx (it, split) {
 			auto& i = *it;
 			let& it1 = it + 1;
 			if (i.starts_with("//") or i.starts_with("/*")) continue;
 			else if (it1 != split.end()) {
 				auto& i1 = *it1;
-				if ( i.type == word::op and (i == "::" or i == "->" or i == ".") and
+				if (i.type == word::op and (i == "::" or i == "->" or i == ".") and
 					(i == "::" or (it != split.begin() and (it - 1)->type == word::no))) {
+					temp_split.back() += i + i1, it++;
+				}
+				else if ((i.type == word::number or (i.type == word::lit and ((i.front() == '"' and i.back() == '"') or (i.front() == '\'' and i.back() == '\'')))) and i1.type == word::no and (i1.front() == '_' or is_in(i1, sprefixs))) {
 					temp_split.back() += i + i1, it++;
 				}
 				else
@@ -256,6 +260,14 @@ public:
 				let& s = l.front();
 				if (not is_in(s, nspaces)) {
 					nspaces.push_back(s);
+				}
+			}
+			else if (i.starts_with("$sep ")) {
+				let l = Rule(str(i.begin() + 5, i.end()), this).split;
+				if (l.size() != 1) error<err::expression_error>("some error on creating a def sep");
+				let& s = l.front();
+				if (not is_in(s, def_seps)) {
+					def_seps.push_back(s);
 				}
 			}
 			else if (i.starts_with("#redefine ")) {
@@ -567,19 +579,17 @@ public:
 					}
 					let& bracket = same_n.back().bracket;
 					it++;
-					int bc = 0, cc = 0, sc = 0, tc = 0;
+					int bc = 0, cc = 0, sc = 0;
 					list<Word> t;
 					list<str> seps;
-					while (!(bc == 0 and cc == 0 and sc == 0 and tc == 0 and *it == bracket.end)) {
+					while (!(bc == 0 and cc == 0 and sc == 0 and *it == bracket.end)) {
 						if (*it == "(") bc++;
 						else if (*it == ")") bc--;
 						else if (*it == "{") cc++;
 						else if (*it == "}") cc--;
 						else if (*it == "[") sc++;
 						else if (*it == "]") sc--;
-						else if (*it == "<") tc++;
-						else if (*it == ">") tc--;
-						if (bc == 0 and cc == 0 and sc == 0 and tc == 0 and not is_in(*it, def_seps)) {
+						if (bc == 0 and cc == 0 and sc == 0 and not is_in(*it, def_seps)) {
 							t.push_back(*it);
 						}
 						else if (is_in(*it, def_seps)) {
@@ -841,9 +851,23 @@ public:
 				if (it1 == split.end()) continue;
 				if (*it1 == "(") {
 					auto cit = it1 + 1;
-					str c;
-					go_end(cit, c, ")", split.end());
+					list<Word> c;
+					c.push_back(*it1);
+					go_endl(cit, c, ")", split.end());
 					if (*(cit + 1) == "{") continue;
+					else if (*(cit + 1) == ":") {
+						c.push_back(*cit);
+						cit++;
+						cit++;
+						c.push_back(Word("{", word::op));
+						go_endl(cit, c, ";", split.end());
+						c.push_back(*cit);
+						c.push_back(Word("}", word::op));
+						let l = Rule(c, this).split;
+						temp_split.insert(temp_split.end(), l.begin(), l.end());
+						it = cit;
+						continue;
+					}
 				}
 				str t = "(";
 				it++;
