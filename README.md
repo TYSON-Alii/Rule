@@ -90,6 +90,13 @@ $def bar[arg1;arg2?arg3,arg4] { }
 $def bar[[arg1=>arg2]] { }
 $def bar<[arg1..arg2:arg3]> { }
 ```
+* you can create def separator
+```cpp
+$sep in
+$def For[i in List] {
+	for (auto&& i : List)
+}
+```
 * string literal like ' ', " " and \` \` etc..
 ```cpp
 $def foo"arg" { "arg" } // same, $def foo"" { __arg__ }
@@ -191,7 +198,7 @@ $macro pi 3.14 // accept
 $macro math.pi 3.1415 // also math::pi and math->pi accept
 ```
 #### auto specifier after const/constexpr keyword
-```js
+```cpp
 // const num = 52;
 constexpr num = 52;
 const* nptr = new int(2);
