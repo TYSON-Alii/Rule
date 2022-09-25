@@ -1,3 +1,4 @@
+#include <Windows.h>
 #include <iostream>
 #include <algorithm>
 #include <vector>
@@ -17,6 +18,7 @@ inline str trim(const str& s) { return rtrim(ltrim(s)); };
 template <typename T> ostream& operator<<(ostream& os, const pmr::vector<T>& l) { for (auto&& i : l) { os << i << '\n'; }; return os; };
 class Rule {
 public:
+	friend class Rule;
 	enum load_type { from_file, from_str };
 	friend class Rule;
 	using str = string;
@@ -30,13 +32,13 @@ public:
 	template <warn t, typename... Args> void warning(const str mes, Args&&... args) { if (wLevel == max_wLevel or (wLevel != 0 and uint(max_wLevel - wLevel) * 100 < uint(t))) cerr << '$' << uint(t) << ' ' << vformat(mes, make_format_args(args...)) << '\n'; }
 	template <warn t> void warning(const str mes) { if (wLevel == max_wLevel or (wLevel != 0 and uint(max_wLevel - wLevel) * 100 < uint(t))) cerr << '$' << uint(t) << ' ' << mes << '\n'; }
 	enum class word : byte { no, keyw, op, token, number, lit };
-	let is_in(auto v, auto l) { for (let& i : l) if (v == i) return true; return false; };
-	let map_list(auto& l, let f, let m) { for (auto& i : l) if (f == i) i = m; };
-	let is_macro(let& v) { for (let& i : macros) if (v == i.name) return true; return false; };
-	let is_def(let& v) { for (let& i : defs) if (v == i.name) return true; return false; };
-	let is_digit(char c) { return c > char(47) and c < char(58); };
-	let is_ptr(auto&& i) { return "*"s == i or "&"s == i or "&&"s == i; };
-	let is_number(const str& s) {
+	let is_in(auto v, auto l) const { for (let& i : l) if (v == i) return true; return false; };
+	let map_list(auto& l, let f, let m) const { for (auto& i : l) if (f == i) i = m; };
+	let is_macro(let& v) const { for (let& i : macros) if (v == i.name) return true; return false; };
+	let is_def(let& v) const { for (let& i : defs) if (v == i.name) return true; return false; };
+	let is_digit(char c) const { return c > char(47) and c < char(58); };
+	let is_ptr(auto&& i) const { return "*"s == i or "&"s == i or "&&"s == i; };
+	let is_number(const str& s) const {
 		if (s.empty() || ((!is_digit(s[0])) && (s[0] != '-') && (s[0] != '+'))) return false;
 		for (let& i : s) if (i != '.' and !is_digit(i)) return false;
 		return true;
@@ -83,8 +85,8 @@ public:
 		list<Word> val;
 		bool variadic = false;
 	};
-	list<str> tokens{ "const", "constexpr", "virtual", "static", "inline", "explicit", "friend", "volatile", "register", "short", "long", "signed", "unsigned" };
-	list<str> keywords{ "fn", "int", "bool", "float", "double", "char", "auto", "return", "break", "case", "catch", "class", "concept", "continue", "decltype", "default", "delete", "do", "else", "if", "enum", "export", "extern", "for", "goto", "namespace", "new", "noexcept", "operator", "private", "public", "protected", "requires", "sizeof", "struct", "switch", "template", "throw", "try", "typedef", "typename", "union", "while" };
+	list<str> tokens{ "swtich", "case", "break", "try", "catch", "return", "for", "if", "do", "else", "while", "goto", "const", "constexpr", "virtual", "static", "inline", "explicit", "friend", "volatile", "register", "short", "long", "signed", "unsigned", "continue", "private", "public", "protected" };
+	list<str> keywords{ "fn", "true", "false", "void", "int", "bool", "float", "double", "char", "auto", "class", "concept", "decltype", "default", "delete", "enum", "export", "extern", "namespace", "new", "noexcept", "operator", "requires", "sizeof", "struct", "template", "throw", "typedef", "typename", "union" };
 	const list<str> rbracket{ "if", "while" };
 	list<str> ops{
 		"{", "}","[", "]", "(", ")", "<", ">", "=", "+", "-", "/", "*", "%", "&", "|", "^", "~", ".", ":", ",", ";", "?", "@", "==", "!=",
@@ -1325,5 +1327,157 @@ protected:
 private:
 	uint wLevel = max_wLevel;
 	uint meta_counter = 0;
+public:
+	friend ostream& operator<<(ostream& os, Rule& rule) {
+		static const auto& hand = GetStdHandle(STD_OUTPUT_HANDLE);
+		let& ops = rule.ops;
+		let& lits = rule.lits;
+		let& tokens = rule.tokens;
+		let& keywords = rule.keywords;
+		let& split = rule.split;
+		let& code = rule.code;
+#define red "\x1B[91m" <<
+#define green "\x1B[92m" <<
+#define yellow "\x1B[93m" <<
+#define blue "\x1B[94m" <<
+#define pink "\x1B[95m" <<
+#define grey "\x1B[37m" <<
+#define white "\x1B[97m" <<
+#define cyan "\x1B[96m" <<
+#define purple "\x1B[35m" <<
+#define dgreen "\x1B[32m" <<
+#define dred "\x1B[31m" <<
+#define dblue "\x1B[34m" <<
+#define dyellow "\x1B[33m" <<
+		str temp_str, space;
+		let& new_splt = [&]() {
+			if (!temp_str.empty()) {
+				cout << space;
+				space.clear();
+				if (rule.is_in(temp_str, ops)) cout << grey temp_str;
+				else if (rule.is_in(temp_str, tokens)) cout << red temp_str;
+				else if (rule.is_number(temp_str)) cout << yellow temp_str;
+				else if (rule.is_in(temp_str, keywords)) cout << blue temp_str;
+				else cout << white temp_str;
+				temp_str = Word();
+			}
+		};
+		forx(it, code) {
+			let& i = *it;
+			let& it_pos = distance(code.begin(), it);
+			if (isspace(i)) {
+				new_splt();
+				space += i;
+				continue;
+			}
+			for (let& l : lits) {
+				let& len = l.beg.size();
+				let& end_len = l.end.size();
+				if (it_pos + len <= code.size()) {
+					let& s = str(it, it + len);
+					if (s == l.beg) {
+						new_splt();
+						it += len;
+						if (l.add_beg)
+							temp_str += l.beg;
+						int not_c = 0;
+						while (true) {
+							if (it == code.end()) { it--; goto cks; }
+							const str& s = str(it, it + end_len);
+							if (*it == l.not_in.beg)
+								not_c++;
+							else if (*it == l.not_in.end)
+								not_c--;
+							if (*it == '\n' and l.ln_problem and *(it - 1) != '\\')
+								throw "errorke";
+							if (s != l.end) {
+								temp_str += *it;
+								it++;
+							}
+							else if (l.bslash and s == l.end and *(it - 1) == '\\') {
+								temp_str += *it;
+								it++;
+							}
+							else if (s == l.end) {
+								if (not_c == 0)
+									break;
+								else
+									temp_str += *it, it++;
+							}
+							else
+								temp_str += *it, it++;
+						};
+						it += end_len - 1;
+					cks:;
+						if (l.add_end) temp_str += l.end;
+						cout << space;
+						space.clear();
+						if (l.beg == "//" or (l.beg == "/*" and l.end == "*/"))
+							cout << grey temp_str;
+						else if (l.beg == "\"" or l.beg == "L" or l.beg == "`" or l.beg == "f\"" or l.beg == "f`" or l.beg == "u8" or l.beg == "u16")
+							cout << dgreen temp_str;
+						else if (l.beg == "'")
+							cout << green temp_str;
+						else if (l.beg.starts_with("$")) {
+							if (temp_str.starts_with("$rep[")) {
+								cout << dyellow str(temp_str.begin(), temp_str.begin()+4) << white str(temp_str.begin()+4, temp_str.end());
+							}
+							else if (temp_str.starts_with("$def ")) {
+								cout << dyellow str(temp_str.begin(), temp_str.begin() + 4);
+								cout << white str(temp_str.begin() + 4, temp_str.end());
+							}
+							else {
+								let f = find(temp_str.begin(), temp_str.end(), ' ');
+								cout << dyellow str(temp_str.begin(), f);
+								let f2 = find(f + 1, temp_str.end(), ' ');
+								if (f2 != temp_str.end())
+									cout << grey str(f, f2) << white str(f2, temp_str.end());
+								else
+									cout << grey str(f, temp_str.end());
+							}
+						}
+						else if (l.beg == "#") {
+							let f = find(temp_str.begin(), temp_str.end(), ' ');
+							cout << dred str(temp_str.begin(), f);
+							cout << grey str(f, temp_str.end());
+						}
+						if (l.beg == "$def") cout << grey l.end;
+						else if (l.add_end == false) cout << l.end;
+						temp_str = Word();
+						goto _exit;
+					};
+				};
+			};
+			for (let& op : ops) {
+				let& len = op.size();
+				if (it_pos + len <= code.size()) {
+					let& s = str(it, it + len);
+					if (s == op) {
+						new_splt();
+						it += len - 1;
+						temp_str = s;
+						new_splt();
+						goto _exit;
+					};
+				};
+			};
+			temp_str += *it;
+		_exit:;
+		};
+		SetConsoleTextAttribute(hand, (WORD)15);
+		return os;
+	};
+#undef red
+#undef green
+#undef yellow
+#undef blue
+#undef pink
+#undef grey
+#undef white
+#undef cyan
+#undef purple
+#undef dgreen
+#undef dred
+#undef dblue
+#undef dyellow
 };
-ostream& operator<<(ostream& os, const Rule& rule) { for (auto i : rule.split) { os << i << '\n'; }; return os; };
