@@ -82,7 +82,7 @@ $def foo[[ ]] { } // accept
 $def foo<[ ]> { } // accept
 $def foo<| |> { } // accept
 ```
-* 12 separator options ",", ":", ";", "=>", "~>", "?", "..", "<\->", "<~>", "<=>", "=:=", "<$>"
+* 12 separator options ",", ":", ";", "=>", "\~>", "?", "..", "<\->", "<~>", "<=>", "=:=", "<$>"
 ```cpp
 $def bar(arg1,arg2:arg3) { }
 $def bar<arg1:arg2> { }
