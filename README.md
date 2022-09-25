@@ -232,7 +232,7 @@ range_list := range[2 .. 5, 1];
 // same as 'auto range_list = range[2 .. 5, 1];'
 &ref_rlist := range_list;
 &&move_rlist := range_list;
-*ptr_rlist :=  range_list;
+*ptr_rlist :=  &range_list;
 &[key, value] := my_pair;
 ```
 #### $operator _[create unary operator]_
