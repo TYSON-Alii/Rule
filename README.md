@@ -1,8 +1,8 @@
 ### Rule [C++ Parser, Re-Writer]
 * [Features](#features)
 * [Docs](#Docs)
-* [Simple example](#Example)
 * [Write your own Rule (and create new features!)](#Write-your-own-rule)
+* [Simple example](#Example)
 ## features
 - [x] [f-string literal](#f-string-literal-string-formatting)
 - [x] [.. operator](#-operator-range-operator)
@@ -27,6 +27,7 @@
 - [x] [nested functions](#nested-functions)
 - [ ] $try, $catch, $endtry
 - [ ] function, variable aliasing
+- [x] [#include "file" as nspace](include-file-as-nspace)
 ## Docs
 #### f-string literal _[string formatting]_
 ```py
@@ -71,6 +72,14 @@ $rep 5 << __n__ << ", " // __n__ is order
 $rep[12:14] cout << "num: " <<  __n__;
 // prints 'num: 12', 'num: 13' and 'num: 14'
 ```
+#### #include "file" as nspace
+```cpp
+#include "Utility.hpp" as UTX
+// same as
+namespace UTX {
+	#include "Utility.hpp"
+}
+```
 #### defs _[safe, functional and overloadable macros]_
 
 * 9 brackets options '( ), [ ], < >, [[ ]], <[ ]>, <| |>, :> <:, :< >:, <: :>'
@@ -112,7 +121,7 @@ $def once {
 	{ static const auto Once = [&]() { __arg__ return nullptr; }(); }
 }
 int i = 0;
-while (true) {
+while true {
 	once {
 		cout << i << '\n';
 	}
@@ -258,241 +267,6 @@ int main() {
 	// fn foo(); // not working function definition, only declaration
 }
 ```
-## Example
-```cxx
-// test.cxx file
-// $import __cxx_utility.hxx included automaticly
-$operator falan
-$operator filan
-
-void operator falan(auto v) {
-	cout << "falanke filanke: " << v << '\n';
-}
-int operator filan(int v); // declaration
-
-#redefine M_PI 3.14f
-$macro math.pi 4 // also math::pi and math->pi accepted
-$macro math.pi 3.14
-$macro 42 "did you mean 'everthing'??"
-
-// brackets ( ), [ ], < >, [[ ]], <[ ]>
-// separators ',', ':', ';', '=>', '?', '..'
-$def log[type:message]{
-	std::cerr << f"{enum_name(type)}:{message}" << '\n';
-}
-$def log<mes> {
-	throw std::runtime_error(mes)
-}
-$def average(...) { (float([... +]) / (float)__arg_count__) }
-$def err<err_type:first_mes, ...> {
-	cerr << err_type << ':' << first_mes << ' ' << [... << ' ' <<]
-}
-$def log'arg' { // that's signle line, log` ` support multi line
-	cout << 'arg' << '\n'
-	// same, cout << __arg__ << '\n'
-}
-auto main() -> int {
-	if<"selm" ? true or false : "mrb">;
-	// comment
-	list<int> l{ 1,1,1,5,6,1,8 };
-	list.map(l : 1 => 31);
-	print[1, selam, "meaba"];
-	average(1, 2, 3, 4, 5);
-	r_list := range[2 .. 5, 1];
-	&ref_list := r_list;
-	[r,g,b] := my_color;
-	for (let i : @[1,4,1,5,7])
-		echo i;
-	err<"error":"check this after", "line:", 5>;
-	str hello = "Hello";
-	enum class log_type { info, error, warning };
-	log[log_type::error : "oops.."];
-	log'`hata` "falan"';
-	std::cout << f"{hello+f`wow {math.pi}.`}, World." << '\n';
-	str falanke = `C:\wow\amazing`;
-	int beg = 10, end = 21;
-	for (const&& i : beg..end) {
-		once{
-			echo f"-_- {i}";
-		}
-		falan filan(i + 1);
-	}
-	if 2 + 2 == 4 { // require curly brackets
-		echo "evet.";
-	}
-	/* amazing comment */
-	fn func(int wow) {
-		if true or false {
-			cout << `falanke filanke\n`;
-		}
-		fn func() -> int {
-			$rep 3 "wow";
-			return 31;
-		}
-	}
-	// const num = 52;
-	const* nptr = new int(2);
-	const[r,g,b] = rgb_color;
-	const&[key,val] = my_pair;
-	constexpr num = 52;
-	const func = [&](str) { /* falan filan */ };
-	func(""s);
-	$rep[31:30 + math.pi] func(__n__);
-	return 0;
-};
-int operator filan(int v) {
-	cout << "oyle iste: " << v << '\n';
-	return v + 42;
-}
-```
-```cpp
-// in main.cpp
-#include <Rule.hpp>
-auto main() -> int {
-	Rule cxx("test.cxx", Rule::from_file);
-	cout << cxx.afterCode;
-	return 0;
-}
-```
-
-```cpp
-// OUTPUT:
-$201 [for] cannot find correct def
-$201 [for] cannot find correct def
-$101 [math.pi] macro defined multi times
-$201 [for] cannot find correct def
-$201 [for] cannot find correct def
-$201 [if] cannot find correct def
-$201 [if] cannot find correct def
-$201 [if] cannot find correct def
-#include <utility>
-#include <string>
-using std::string;
-using std::to_string;
-using std::wstring;
-#include <iostream>
-using std::cout;
-using std::cin;
-using std::cerr;
-#include <sstream>
-#include <fstream>
-#include <array>
-using std::array;
-#include <deque>
-#include <bitset>
-#include <tuple>
-using std::tuple;
-#include <typeinfo>
-#include <format>
-#include <algorithm>
-#include <execution>
-#include <concepts>
-#include <vector>
-#include <map>
-#include <unordered_map>
-#include <memory>
-#include <iomanip>
-using namespace std::string_literals;
-namespace __cxx_rule{
-        inline auto __operator_echo(auto v){
-                return cout<<v<<'\n';
-        }
-}
-namespace __cxx_rule{
-        void __operator_falan(auto v){
-                cout<<"falanke filanke: "<<v<<'\n';
-        }
-}
-namespace __cxx_rule{
-        int __operator_filan(int v);
-}
-#ifdef M_PI
-#undef M_PI
-#endif
-#define M_PI 3.14
-auto main()->int {
-        ([&](){
-                if (true or false){
-                        return "selm";
-                }
-                return "mrb";
-        }
-        ());
-        std::pmr::vector<int >l{
-                1,1,1,5,6,1,8 };
-        (for (auto &i:l)if (i==1){
-                i=31;
-        }
-        );
-        cout<<1<<' '<<selam<<' '<<"meaba";
-        (float (1+2+3+4+5)/(float )5);
-        auto r_list=([&]()->auto {
-                vector<decltype (2)>v;
-                for (auto i=2;
-                i!=5;
-                i+=1)v.push_back(i);
-                return v;
-        }
-        ());
-        auto &ref_list=r_list;
-        auto [r,g,b]=my_color;
-        for (const auto i:std::vector{
-                1,4,1,5,7 }
-        )__cxx_rule::__operator_echo(i);
-        cerr<<"error"<<':'<<"check this after"<<' '<<"line:"<<' '<<5;
-        std::string hello="Hello";
-        enum class log_type{
-                info,error,warning };
-        std::cerr<<format("{}:{}",enum_name(log_type::error),"oops..")<<'\n';
-        ;
-        cout<<'`hata` "falan"'<<'\n';
-        std::cout<<format("{}, World.",hello+format(,3.14))<<'\n';
-        std::string falanke=R"__cxx_rule(C:\wow\amazing)__cxx_rule";
-        int beg=10,end=21;
-        for (const auto &&i:__cxx_rule::__dotdot_op(beg,end)){
-                {
-                        static const auto Once=[&](){
-                                __cxx_rule::__operator_echo(f"-_- {i}");
-                                return nullptr;
-                        }
-                        ();
-                }
-                __cxx_rule::__operator_filan((i+1));
-        }
-        if (2+2==4){
-                __cxx_rule::__operator_echo("evet.");
-        }
-        const auto func=[&](int wow)->auto {
-                if (true or false){
-                        cout<<R"__cxx_rule(falanke filanke\n)__cxx_rule";
-                }
-                const auto func=[&]()->int {
-                        "wow";
-                        "wow";
-                        "wow";
-                        "wow";
-                        return 31;
-                };
-        };
-        const auto *nptr=new int (2);
-        const auto [r,g,b]=rgb_color;
-        const auto &[key,val]=my_pair;
-        constexpr auto num=52;
-        const auto func=[&](std::string){
-        };
-        func("" s);
-        func(31);
-        func(32);
-        func(33);
-        return 0;
-};
-namespace __cxx_rule{
-        int __operator_filan(int v){
-                cout<<"oyle iste: "<<v<<'\n';
-                return v+"did you mean 'everthing'??";
-        }
-}
-```
 ## Write your own rule
 ```cpp
 class myRule : public Rule {
@@ -554,5 +328,261 @@ int main(){
         int a=1;
         a+=2;
         __cxx_rule::__operator_echo("safsdfsdfa\n");
+}
+```
+## Example
+```cxx
+// test.cxx file
+// $import __cxx_utility.hxx included automaticly
+$operator falan
+$operator filan
+
+void operator falan(auto v) {
+	cout << "falanke filanke: " << v << '\n';
+}
+int operator filan(int v); // declaration
+
+#redefine M_PI 3.14f
+$macro math.pi 4 // also math::pi and math->pi accepted
+$macro math.pi 3.14
+$macro 42 "did you mean 'everthing'??"
+
+$def log[type:message]{
+	std::cerr << f"{enum_name(type)}:{message}" << '\n';
+}
+$def log<mes> {
+	throw std::runtime_error(mes)
+}
+$def average(...) { (float([... +]) / (float)__arg_count__) }
+$def err<err_type:first_mes, ...> {
+	cerr << err_type << ':' << first_mes << ' ' << [... << ' ' <<]
+}
+#define stringZ(arg) #arg
+$def log'arg' { // that's signle line, log` ` support multi line
+	cout << stringZ(__arg_no_pp__) << '\n'
+}
+const func() -> bool {
+	return true;
+}
+$sep in
+$def For[i in l] {
+	for (auto&& i : l)
+}
+#include "Game.hpp" as xs
+const main() -> int {
+	std.size_t i = 0;
+	if<"selm" ? true or false : "mrb">;
+	// comment
+	list<int> l{ 1,1,1,5,6,1,8 };
+	list.map(l : 1 => 31);
+	For[i in l] {
+		echo i;
+	}
+	print[1, selam, "meaba"];
+	average(1, 2, 3, 4, 5);
+	r_list := range[2 .. 5, 1];
+	&ref_list := r_list;
+	[r,g,b] := my_color;
+	for (const& i : @[1,4,1,5,7])
+		echo i;
+	err<"error" : "check this after", "line:", 5>;
+	str hello = "Hello";
+	enum class log_type { info, error, warning };
+	log[log_type::error : "oops.."];
+	log'`hata` "falan"';
+	std::cout << f"{hello+f`wow {math.pi}.`}, World." << '\n';
+	str falanke = `C:\wow\amazing`;
+	int beg = 10, end = 21;
+	for(let i : beg..end) {
+		once{
+			echo f"-_- {i}";
+		}
+		falan filan (i + 1);
+	}
+	if 2 + 2 == 4 { // require curly brackets
+		echo "evet.";
+	}
+	if (2 + 2 == 5):
+		echo "hayir";
+	/* amazing comment */
+	fn func(int wow) {
+		if true or false {
+			cout << `falanke filanke\n`;
+		}
+		fn func() -> int {
+			$rep 3 "wow";
+			return 31;
+		}
+	}
+	// const num = 52;
+	const* nptr = new int(2);
+	const[r,g,b] = rgb_color;
+	const&[key,val] = my_pair;
+	constexpr num = 52;
+	const func = [&](str) { /* falan filan */ };
+	func(""s);
+	$rep[31:30 + math.pi] func(__n__);
+	math.pi;
+	return 0;
+};
+int operator filan(int v) {
+	cout << "oyle iste: " << v << '\n';
+	return v + 42;
+}
+```
+```cpp
+// in main.cpp
+#include <Rule.hpp>
+auto main() -> int {
+	Rule cxx("test.cxx", Rule::from_file);
+	cout << cxx.afterCode;
+	return 0;
+}
+```
+
+```cpp
+// OUTPUT:
+#include <utility>
+#include <string>
+using std::string;
+using std::to_string;
+using std::wstring;
+#include <iostream>
+using std::cout;
+using std::cin;
+using std::cerr;
+#include <sstream>
+#include <fstream>
+#include <array>
+using std::array;
+#include <deque>
+#include <bitset>
+#include <tuple>
+using std::tuple;
+#include <typeinfo>
+#include <format>
+#include <algorithm>
+#include <execution>
+#include <concepts>
+#include <vector>
+#include <map>
+#include <unordered_map>
+#include <memory>
+#include <iomanip>
+using namespace std::string_literals;
+namespace __cxx_rule{
+        inline auto __operator_echo(auto v){
+                return cout<<v<<'\n';
+        }
+}
+inline const auto if_else(bool con,auto _if,auto _else){
+        if(_con){
+                return _if;
+        }
+        return _else;
+}
+inline auto range_fn(start,end,step){
+        vector<decltype(start)>v;
+        for(auto i=start;
+        i<end;
+        i+=step)v.push_back(i);
+        return v;
+}
+namespace __cxx_rule{
+        void __operator_falan(auto v){
+                cout<<"falanke filanke: "<<v<<'\n';
+        }
+}
+namespace __cxx_rule{
+        int __operator_filan(int v);
+}
+#ifdef M_PI
+#undef M_PI
+#endif
+#define M_PI 3.14
+#define stringZ(arg) #arg
+const auto func()->bool{
+        return true;
+}
+namespace xs{
+        #include "Game.hpp"
+}
+const auto main()->int{
+        std::size_t i=0;
+        if_else(true or false,"selm","mrb");
+        std::pmr::vector<int>l{
+                1,1,1,5,6,1,8 };
+        (for(auto&i:l)if(i==1){
+                i=31;
+        }
+        );
+        for(auto&&i:l){
+                __cxx_rule::__operator_echo(i);
+        }
+        cout<<1<<' '<<selam<<' '<<"meaba";
+        (float(1+2+3+4+5)/(float)5);
+        auto r_list=range_fn(2,5,1);
+        auto &ref_list=r_list;
+        auto [r,g,b]=my_color;
+        for(const auto &i:(std::vector{
+                1,3.14,1,5, }
+        ))__cxx_rule::__operator_echo(i);
+        cerr<<"error"<<':'<<"check this after"<<' '<<"line:"<<' '<<5;
+        std::string hello="Hello";
+        enum class log_type{
+                info,error,warning };
+        std::cerr<<format("{}:{}",enum_name(log_type::error),"oops..")<<'\n';
+        ;
+        cout<<stringZ(`hata` "falan")<<'\n';
+        std::cout<<format("{}, World.",hello+format(R"__cxx_rule(wow {}.)__cxx_rule",4))<<'\n';
+        std::string falanke=R"__cxx_rule(C:\wow\amazing)__cxx_rule";
+        int beg=10,end=21;
+        for(const auto i:__cxx_rule::__dotdot_op(beg,end)){
+                {
+                        static const auto Once=[&](){
+                                __cxx_rule::__operator_echo(f"-_- {i}");
+                                return nullptr;
+                        }
+                        ();
+                }
+                __cxx_rule::__operator_filan((i+1));
+        }
+        if(2+2==3.14){
+                __cxx_rule::__operator_echo("evet.");
+        }
+        if(2+2==5){
+                __cxx_rule::__operator_echo("hayir");
+        }
+        const auto func=[&](int wow)->auto{
+                if(true or false){
+                        cout<<R"__cxx_rule(falanke filanke\n)__cxx_rule";
+                }
+                const auto func=[&]()->int{
+                        "wow";
+                        "wow";
+                        "wow";
+                        "wow";
+                        return 31;
+                };
+        };
+        const auto *nptr=new int(2);
+        const auto [r,g,b]=rgb_color;
+        const auto &[key,val]=my_pair;
+        constexpr auto num=52;
+        const auto func=[&](std::string){
+        };
+        func(""s);
+        func(31);
+        func(32);
+        func(33);
+        func(34);
+        4;
+        return 0;
+};
+namespace __cxx_rule{
+        int __operator_filan(int v){
+                cout<<"oyle iste: "<<v<<'\n';
+                return v+"did you mean 'everthing'??";
+        }
 }
 ```
