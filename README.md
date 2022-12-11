@@ -27,7 +27,7 @@
 - [x] [nested functions](#nested-functions)
 - [ ] $try, $catch, $endtry
 - [ ] function, variable aliasing
-- [x] [#include "file" as nspace](include-file-as-nspace)
+- [x] [#include "file" as nspace](#include-file-as-nspace)
 ## Docs
 #### f-string literal _[string formatting]_
 ```py
