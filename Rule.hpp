@@ -90,8 +90,8 @@ public:
 	const list<str> rbracket{ "if", "while" };
 	list<str> ops{
 		"{", "}","[", "]", "(", ")", "<", ">", "=", "+", "-", "/", "*", "%", "&", "|", "^", "~", ".", ":", ",", ";", "?", "@", "==", "!=",
-		">=", "<=", "<<", ">>", "--", "++", "&&", "||", ":=", "+=", "-=", "*=", "/=", "%=", "^=", "|=", "&=", "~=", ".=", "?="
-		"^^", "->", "=>", "~>", "::", "..", "[[", "]]", "<[", "]>", "<|", "|>", ":>", "<:", ">:", ":<", "<$>", "??", "|=|", "%%", "##"
+		">=", "<=", "<<", ">>", "--", "++", "&&", "||", ":=", "+=", "-=", "*=", "/=", "%=", "^=", "|=", "&=", "~=", ".=", "?=",
+		"^^", "->", "=>", "~>", "::", "..", "[[", "]]", "<[", "]>", "<|", "|>", ":>", "<:", ">:", ":<", "<$>", "??", "|=|", "%%", "##",
 		"<=>", "<<=", ">>=", "...", "===", "..=", "^^=", "<->", "<~>", "=:="
 	};
 	list<OP> user_ops;
@@ -281,6 +281,20 @@ public:
 				temp_split.push_back(Word("#undef "s + m, word::lit));
 				temp_split.push_back(Word("#endif"s, word::lit));
 				temp_split.push_back(Word("#define "s + m + ' ' + val, word::lit));
+			}
+			else if (i.starts_with("#include ")) {
+				const str s = str(i.begin() + 9, i.end());
+				let val = Rule(s, this).split;
+				let vf = val.front();
+				if (val.size() == 3 and vf.starts_with("\"") and vf.starts_with("\"") and val[1] == "as") {
+					let nspace = val[2];
+					temp_split.push_back(Word("namespace", word::keyw));
+					temp_split.push_back(Word(nspace));
+					temp_split.push_back(Word("{", word::op));
+					temp_split.push_back(Word("#include "s + val.front(), word::keyw));
+					temp_split.push_back(Word("}", word::op));
+				}
+				else temp_split.push_back(i);
 			}
 			else if (i.starts_with("$rep")) {
 				let splt = Rule(str(i.begin() + 4, i.end()), this).split;
@@ -1170,8 +1184,7 @@ protected:
 								not_c++;
 							else if (*it == l.not_in.end)
 								not_c--;
-							if (*it == '\n' and l.ln_problem and *(it - 1) != '\\')
-								throw "errorke";
+							if (*it == '\n' and l.ln_problem and *(it - 1) != '\\') throw "errorke";
 							if (s != l.end) {
 								temp_str += *it;
 								it++;
@@ -1336,29 +1349,36 @@ public:
 		let& keywords = rule.keywords;
 		let& split = rule.split;
 		let& code = rule.code;
-#define red "\x1B[91m" <<
-#define green "\x1B[92m" <<
-#define yellow "\x1B[93m" <<
-#define blue "\x1B[94m" <<
-#define pink "\x1B[95m" <<
-#define grey "\x1B[37m" <<
-#define white "\x1B[97m" <<
-#define cyan "\x1B[96m" <<
-#define purple "\x1B[35m" <<
-#define dgreen "\x1B[32m" <<
-#define dred "\x1B[31m" <<
-#define dblue "\x1B[34m" <<
-#define dyellow "\x1B[33m" <<
+#define Black     "\x1B[30m" <<
+#define Red       "\x1B[31m" <<
+#define Green     "\x1B[32m" <<
+#define Yellow    "\x1B[33m" <<
+#define Blue      "\x1B[34m" <<
+#define Magenta   "\x1B[35m" <<
+#define Cyan      "\x1B[36m" <<
+#define White     "\x1B[37m" <<
+#define lBlack    "\x1B[90m" <<
+#define lRed      "\x1B[91m" <<
+#define lGreen    "\x1B[92m" <<
+#define lYellow   "\x1B[93m" <<
+#define lBlue     "\x1B[94m" <<
+#define lMagenta  "\x1B[95m" <<
+#define lCyan     "\x1B[96m" <<
+#define lWhite    "\x1B[97m" <<
 		str temp_str, space;
 		let& new_splt = [&]() {
 			if (!temp_str.empty()) {
 				cout << space;
 				space.clear();
-				if (rule.is_in(temp_str, ops)) cout << grey temp_str;
-				else if (rule.is_in(temp_str, tokens)) cout << red temp_str;
-				else if (rule.is_number(temp_str)) cout << yellow temp_str;
-				else if (rule.is_in(temp_str, keywords)) cout << blue temp_str;
-				else cout << white temp_str;
+				//if (temp_str == "::") cout << lBlack "::";
+				if (rule.is_in(temp_str, ops)) cout << lBlack temp_str;
+				else if (rule.is_in(temp_str, tokens)) cout << lRed temp_str;
+				else if (rule.is_in(temp_str, rule.def_seps)) cout << Magenta temp_str;
+				else if (rule.is_number(temp_str)) cout << lYellow temp_str;
+				else if (rule.is_in(temp_str, keywords)) cout << lBlue temp_str;
+				else if (rule.is_in(temp_str, rule.user_ops)) cout << lCyan temp_str;
+				else if (rule.is_def(temp_str)) cout << Blue temp_str;
+				else cout << lWhite temp_str;
 				temp_str = Word();
 			}
 		};
@@ -1413,35 +1433,33 @@ public:
 						cout << space;
 						space.clear();
 						if (l.beg == "//" or (l.beg == "/*" and l.end == "*/"))
-							cout << grey temp_str;
+							cout << Red temp_str;
 						else if (l.beg == "\"" or l.beg == "L" or l.beg == "`" or l.beg == "f\"" or l.beg == "f`" or l.beg == "u8" or l.beg == "u16")
-							cout << dgreen temp_str;
-						else if (l.beg == "'")
-							cout << green temp_str;
+							cout << lYellow temp_str;
 						else if (l.beg.starts_with("$")) {
 							if (temp_str.starts_with("$rep[")) {
-								cout << dyellow str(temp_str.begin(), temp_str.begin()+4) << white str(temp_str.begin()+4, temp_str.end());
+								cout << Yellow str(temp_str.begin(), temp_str.begin()+4) << White str(temp_str.begin()+4, temp_str.end());
 							}
 							else if (temp_str.starts_with("$def ")) {
-								cout << dyellow str(temp_str.begin(), temp_str.begin() + 4);
-								cout << white str(temp_str.begin() + 4, temp_str.end());
+								cout << Yellow str(temp_str.begin(), temp_str.begin() + 4);
+								cout << White str(temp_str.begin() + 4, temp_str.end());
 							}
 							else {
 								let f = find(temp_str.begin(), temp_str.end(), ' ');
-								cout << dyellow str(temp_str.begin(), f);
+								cout << Yellow str(temp_str.begin(), f);
 								let f2 = find(f + 1, temp_str.end(), ' ');
 								if (f2 != temp_str.end())
-									cout << grey str(f, f2) << white str(f2, temp_str.end());
+									cout << White str(f, f2) << lWhite str(f2, temp_str.end());
 								else
-									cout << grey str(f, temp_str.end());
+									cout << White str(f, temp_str.end());
 							}
 						}
 						else if (l.beg == "#") {
 							let f = find(temp_str.begin(), temp_str.end(), ' ');
-							cout << dred str(temp_str.begin(), f);
-							cout << grey str(f, temp_str.end());
+							cout << Red str(temp_str.begin(), f);
+							cout << White str(f, temp_str.end());
 						}
-						if (l.beg == "$def") cout << grey l.end;
+						if (l.beg == "$def") cout << White l.end;
 						else if (l.add_end == false) cout << l.end;
 						temp_str = Word();
 						goto _exit;
@@ -1466,7 +1484,6 @@ public:
 		};
 		SetConsoleTextAttribute(hand, (WORD)15);
 		return os;
-	};
 #undef red
 #undef green
 #undef yellow
@@ -1480,4 +1497,5 @@ public:
 #undef dred
 #undef dblue
 #undef dyellow
+	};
 };
