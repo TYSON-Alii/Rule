@@ -16,6 +16,7 @@
 - [x] [$rep, $rep[beg:end]](#reprep-rewrites-n-times)
 - [x] [safe macros ($macro)](#macro-safe-macros)
 - [ ] local macros
+- [ ] {'label':value, ..} dictionary initilazer list
 - [x] [@[ ] brackets, convert initializer list to vector](#auto-type-variable-definition-with--operator)
 - [x] [removing parent bracket requiment](#no-parent-bracket-requiremnt)
 - [ ] => operator for lambda
